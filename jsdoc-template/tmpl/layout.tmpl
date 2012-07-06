@@ -1,0 +1,109 @@
+<?php 
+	define('WP_USE_THEMES', false);
+	require('../../wp-blog-header.php');
+	
+	$page_template = 'single-doc jsdoc3';
+	
+	get_header();
+?>
+
+<section class="container interior-container" itemscope itemtype="http://schema.org/Article">
+
+	<header class="content-header">
+		<h2 itemprop="name">BrightContext Documentation</h2>
+	</header>
+
+    <section role="complementary" class="leftcolumn" id="docs-sidebar-nav">
+		
+		<h3 class="visually-hidden">Documentation Navigation</h3>
+		
+		<?php //get_template_part('searchform-docs'); ?>
+		
+        <ul id="menu-documentation-page-sidebar" class="nav docs">
+	        
+	        <li>
+		        <a href="<?php viget_get_permalink_by_name('Overview', 'page')?>">Overview</a>
+		    </li>
+
+			<li>
+				<a href="<?php viget_get_permalink_by_name('From 0 to 60', 'page')?>">Quickstart</a>
+			</li>
+
+		    <li>
+		    	<a href="<?php viget_get_permalink_by_name('Platform Guide', 'doc')?>">Platform Guide</a>
+		    </li>
+			
+			<li class="current-menu-item">
+				
+				<a href="/docs/js">JS SDK Guide</a>
+				
+				<ul class="sub-menu">
+				
+				<?js
+					for (var i in this.nav) {
+	
+					var links = this.nav[i];
+						if (!links) continue;
+						if (0 === links.length) continue; ?>
+						
+			        <li>
+						
+				        <p><?js= i[0].toUpperCase() + i.slice(1) ?></p>
+										
+						<?js
+						var keys = [];
+						for (var j in links) {
+							keys.push(j);
+						}
+					
+						keys.sort();
+						?>
+						<ul class="sub-menu">
+							<?js			
+							for (var k in keys) {
+								var m = links[keys[k]];
+						
+								if (!m) continue;
+								if (!m.url) continue;
+								if ("" == m.url) continue;
+						
+								var re = new RegExp(m.name+"$", 'ig');
+								var isactive = !!title.match(re);
+							?>
+							<li class="<?js= (isactive) ? 'current-menu-item' : '' ?>"><a href="<?js= m.url ?>"><?js= m.name ?></a></li>
+							<?js } ?>
+						</ul>
+						
+					</li>
+				
+				<?js }; ?>
+
+				</ul>
+			
+			</li>	
+			
+			<li>
+			 	<a href="/docs/ios">iOS SDK Guide</a>
+			</li>
+
+		  <li>
+			 	<a href="/fdu">Diagnostic Tool</a>
+			</li>
+
+			<li>
+			 	<a href="http://github.com/brightcontext">Libraries</a>
+			</li>
+			
+        </ul>
+
+    </section><!--/leftcolumn-->
+
+    <div id="docs-content" role="main" class="rightcolumn" itemprop="articleBody">
+		<?js= content ?>
+    </div>
+
+</div>
+
+<script src="js/underscore.min.js"></script>
+
+<?php get_footer(); ?>
