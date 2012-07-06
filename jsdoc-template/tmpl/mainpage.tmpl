@@ -1,0 +1,73 @@
+<div class="row-fluid">
+<h2>First Steps</h2>
+
+<pre class="prettyprint lang-html">
+&lt;!-- include from our CDN or host your own --&gt;
+&lt;script type="text/javascript" src="http://static.brightcontext.com/js-sdk/bcc.min.js"&gt;&lt;/script&gt;
+
+&lt;script type="text/javascript"&gt;
+  // initialize with your api key you created and select a project
+  var p = BCC.init('apikey').project('projectname');
+&lt;/script&gt;
+</pre>
+
+<h2>ThruChannels</h2>
+<pre class="prettyprint lang-js">
+// open a feed and start sending and receiving messages
+p.feed({
+  channel: 'name of channel with no processing',
+  onopen: function(f) {
+    f.send({
+      // json payload
+    });
+  },
+  onmsgreceived: function(f, msg) {
+    console.log(msg);
+  }
+});
+
+// open a private sub-channel
+p.feed({
+  channel: 'chat',
+  name: '#dolphins',
+  onopen: function(f) {
+    f.send({
+      'ts' : new Date(),
+      'msg' : 'thanks for all the fish!'
+    );
+  },
+  onmsgreceived: function(f, msg) {
+    console.log(msg);
+  }
+});
+
+</pre>
+
+<h2>QuantChannels</h2>
+<pre class="prettyprint lang-js">
+var chan = 'channel with processing';
+
+// open an input and send data for processing
+p.feed({
+  channel: chan,
+  name: 'inputfeedname',
+  onopen: function(f) {
+    setInterval(function() {
+      f.send({ v : Math.random() });
+    }, 5000);
+  }
+});
+
+// open an output and receive processed data
+p.feed({
+  channel: chan,
+  name: 'outputfeedname',
+  onmsgreceived: function(f, msg) {
+    console.log(msg);
+  }
+});
+</pre>
+
+For more details see <a href="BCC.Project.php">Project</a>.
+
+</div>
