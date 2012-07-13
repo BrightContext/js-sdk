@@ -1,3 +1,11 @@
+//-----------------------------------------------------------------
+// Copyright 2012 BrightContext Corporation
+//
+// Licensed under the MIT License defined in the 
+// LICENSE file.  You may not use this file except in 
+// compliance with the License.
+//-----------------------------------------------------------------
+
 BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
 
 /**
@@ -367,8 +375,8 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
                 /*BCC.Log.error("Stream Error : Reconnecting to Push Stream","BCC.Connection._doStreamOpen");
                 setTimeout (function(){me._doStreamOpen();}, 2000); //Reconnects after 2 seconds : Failure
                  */
-                if (this.onerror != null)
-                setTimeout(this.onerror, 0);
+                if (me.onerror != null)
+                setTimeout(me.onerror, 0);
             };
         }
         this.xhr.open("POST", pushEndPoint, true);

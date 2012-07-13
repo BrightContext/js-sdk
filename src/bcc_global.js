@@ -1,5 +1,14 @@
+//-----------------------------------------------------------------
+// Copyright 2012 BrightContext Corporation
+//
+// Licensed under the MIT License defined in the 
+// LICENSE file.  You may not use this file except in 
+// compliance with the License.
+//-----------------------------------------------------------------
+
 /**
- * Global context
+ * 
+ * The primary namespace used by the BrightContext JavaScript SDK.
  * @namespace
  */
 BCC = ("undefined" == typeof(BCC)) ? {}: BCC;

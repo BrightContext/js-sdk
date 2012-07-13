@@ -1,3 +1,11 @@
+//-----------------------------------------------------------------
+// Copyright 2012 BrightContext Corporation
+//
+// Licensed under the MIT License defined in the 
+// LICENSE file.  You may not use this file except in 
+// compliance with the License.
+//-----------------------------------------------------------------
+
 BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
 
 /**
@@ -81,13 +89,10 @@ BCC.Command = function(method, cmdString, parameters) {
 		var url = this.cmd.substr(this.cmd.indexOf("/"));
 		var cmd = url;
 		var index = 0;
-		for(var key in this.parameters) {
-			if(index == 0) cmd += "?"; else cmd += "&";
-			var v = this.parameters[key];
-			v = ("object" == typeof(v)) ? v = JSON.stringify(v) : v;
-			cmd +=  key + "=" + escape(v);
-			index++;
-		}
+
+		var paramstring = JSON.stringify(this.parameters);
+		cmd += "?params=" + escape(paramstring);
+
 		return BCC.API_COMMAND_ROOT + cmd;
 	};
 

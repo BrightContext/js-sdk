@@ -1,4 +1,7 @@
 <?js var self = this; ?>
+
+<?js if ('namespace' != data.kind) { ?>
+
 <dl class="details">
     <?js
         var properties = data.properties;
@@ -87,3 +90,4 @@
 	<?js } ?>
 </dl>
 
+<?js } ?>

@@ -1,3 +1,11 @@
+//-----------------------------------------------------------------
+// Copyright 2012 BrightContext Corporation
+//
+// Licensed under the MIT License defined in the 
+// LICENSE file.  You may not use this file except in 
+// compliance with the License.
+//-----------------------------------------------------------------
+
 BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
 
 /**
@@ -157,7 +165,7 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 			cmd.addParam({writeKey: this.writeKey})
 		var me = this;
 		cmd.onresponse = function(msg) {
-			BCC.Log.error("Feed reopened succesfully.", "BCC.Feed.reopen");
+			BCC.Log.debug("Feed reopened succesfully.", "BCC.Feed.reopen");
 		};
 		cmd.onerror = function(err) {
 			if (!!!!me.feedSettings) {
