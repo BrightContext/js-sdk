@@ -94,18 +94,37 @@ BCC.Channel = function(description) {
           var bothArraysExist = (( !! array1) && ( !! array2));
           if (bothArraysExist) {
               if (array1.length == array2.length) {
-                  var ok = array1.every(function(e1) {
+                  /*var ok = array1.every(function(e1) {
                       return array2.some(function(e2) {
                           return (e1 == e2);
                       });
                   });
-                  return ok;
+                  return ok;*/
+            	  var ok = checkArrayElements(array1, array2);
+            	  return ok;
               } else {
                   return false;
               }
           } else {
               return false;
           }
+    };
+    
+    var checkArrayElements = function(array1, array2){
+    	for(var index1 = 0; index1 < array1.length; index1++){
+    		var itemFound = false;
+    		var ele1 = array1[index1];
+    		for(var index2 = 0; index2 < array2.length; index2++){
+    			var ele2 = array2[index2];
+    			if(ele1 == ele2){
+    				itemFound = true;
+    				break;
+    			}
+    		}
+    		if(!itemFound)
+    			return false;
+    	}
+    	return true;
     };
 
     this.validFilter = function(feedInfo, filterObj) {
@@ -127,15 +146,22 @@ BCC.Channel = function(description) {
     };
 
     this._filterByType = function(list, ft) {
-        return list.filter(function(o) {
-            return o.feedType == ft;
-        });
+    	var arr = new Array();
+    	for(var index in list){
+    		if(list[index].feedType == ft)
+    			arr.push(list[index]);
+    	};
+    	return (0 === arr.length) ? null: arr;
     };
     this._filterByName = function(list, n) {
-        var r = list.filter(function(o) {
-            return (o.name == n);
-        });
-        return (0 === r.length) ? null: r[0];
+    	var f = null;
+    	for(var index in list){
+    		if(list[index].name == n){
+    			f = list[index];
+    			break;
+    		}
+    	}
+    	return f;
     };
 
     //this._init = function() {

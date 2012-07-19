@@ -6,6 +6,8 @@
 // compliance with the License.
 //-----------------------------------------------------------------
 
+
+
 /**
  * 
  * The primary namespace used by the BrightContext JavaScript SDK.
@@ -141,7 +143,7 @@ BCC.Log.error = function(msg, path) {
 
 //Web Socket JS Globals
 WEB_SOCKET_SWF_LOCATION = BCC.STATIC_URL + "/lib/WebSocketMainInsecure.swf";
-WEB_SOCKET_DEBUG = true;
+WEB_SOCKET_DEBUG = false;
 
 /**
  * @private
