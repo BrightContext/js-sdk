@@ -60,7 +60,7 @@ BCC.LogLevel.DEBUG = 4;
 /** Current log level
  * @private
  */
-BCC.CURRENT_LOG_LEVEL = BCC.LogLevel.INFO;
+BCC.CURRENT_LOG_LEVEL = BCC.LogLevel.ERROR;
 
 /**
  * Returns the current system log level.
@@ -154,7 +154,7 @@ BCC.Util = {};
 /**
  * BCC Util method to store cookie
  * @param {string} name
- * @param {JSON} sessObj 
+ * @param {object} sessObj 
  */
 BCC.Util.setCookie = function(name, sessObj){
 	var sessStr = JSON.stringify(sessObj);
@@ -186,7 +186,7 @@ BCC.Util.getCookie = function(cookieName){
 
 /**
  * For Future Use
- * @param {JSON} sessObj
+ * @param {object} sessObj
  * @returns {string}
  */
 BCC.Util.urlSerialize = function(sessObj){

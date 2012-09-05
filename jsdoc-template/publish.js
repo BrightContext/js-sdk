@@ -18,7 +18,7 @@
     publish = function(data, opts, tutorials) {
         console.log(opts);
 
-        var defaultTemplatePath = __dirname + '/' + 'templates/default';
+        var defaultTemplatePath = 'templates/default';
         var templatePath = (opts.template) ? opts.template : defaultTemplate;
         var out = '';
         var view = new template.Template(templatePath + '/tmpl');

@@ -64,7 +64,7 @@ BCC.Ajax = function() {
 						me._doReady();
 					};
 					scriptNode.onerror = function() {
-		            	BCC.Log.error("Fatal error. Cannot inject dependancy lib (flxhr)", "BCC.Ajax._init");
+						BCC.Log.error("Fatal error. Cannot inject dependancy lib (flxhr)", "BCC.Ajax._init");
 		            };
 				}
 
@@ -110,7 +110,7 @@ BCC.Ajax = function() {
 		//flxhr fix : If the post data is null, the call is made as GET instead of POST.
 		if(!this._isXhrCors() && !this._isXDomainRequest() && data == null)
 			data = "NA";
-		if(this.needsOpening == true){
+		if(this.needsOpening === true){
 			this.needsSending = true;
 			this.data = data;
 		} else {
@@ -121,17 +121,17 @@ BCC.Ajax = function() {
 	 * Returns the response text of the XHR call
 	 * @returns {string} responseText
 	 */ 
-	this.getResponseText = function() {return this.xhr.responseText;}
+	this.getResponseText = function() {return this.xhr.responseText;};
 	/**
 	 * Returns the status of the XHR call
 	 * @returns {string} status
 	 */
-	this.getStatus = function(){return this.status;}
+	this.getStatus = function(){return this.status;};
 	/**
 	 * Aborts the XHR call
 	 */
 	this.abort = function(){
-		if(this.needsOpening == true)
+		if(this.needsOpening === true)
 			this.needsOpening = false;
 		else
 			this.xhr.abort();
@@ -234,7 +234,7 @@ BCC.Ajax = function() {
 		this.status = BCC.AJAX_IN_PROGRESS;
 		this.xhr.open(this.method, this.url, this.async, this.uname, this.pswd);
 		this.needsOpening = false;
-		if(this.needsSending == true){
+		if(this.needsSending === true){
 			this.xhr.send(this.data);
 			this.needsSending = false;
 		}

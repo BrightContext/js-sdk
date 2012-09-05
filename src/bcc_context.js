@@ -134,13 +134,13 @@ BCC.Context = function() {
     };
     
     this._reRegisterAllFeeds = function(){
-    	var feedsArray = this.feedRegistry.getAllFeeds();
-    	if(feedsArray != null){
-        	for(var index=0; index < feedsArray.length; index++){
-        		var feed = feedsArray[index];
-        		feed.reopen(this.conn);
-        	}
-    	}
+        var feedsArray = this.feedRegistry.getAllUniqueFeeds();
+        if(feedsArray != null){
+            for(var index=0; index < feedsArray.length; index++){
+                var feed = feedsArray[index];
+                feed.reopen(this.conn, this.feedRegistry);
+            }
+        }
     };
 
     /**
@@ -170,8 +170,9 @@ BCC.Context = function() {
         } else {
             // feed matching the same feeKey already exists... so reload the new feed with existing loaded feedSettings
             feed.reloadFeedSettings(feedSettings);
+            feed.conn = this.conn;
             this.feedRegistry.registerFeed(feed);
-            var openEvent = new BCC.Event("onopen", BCC.EventDispatcher.getObjectKey(feed), null);
+            var openEvent = new BCC.Event("onopen", BCC.EventDispatcher.getObjectKey(feed), feed);
             BCC.EventDispatcher.dispatch(openEvent);
             // trigger onOpen for all listeners
         }
@@ -185,21 +186,15 @@ BCC.Context = function() {
      * @see BCC.Feed#close
      */
     this.closeFeed = function(feed) {
-        if (this.feedRegistry.feedExists(feed)) {
-            this.feedRegistry.unRegisterFeed(feed);
-        }
-
-        if (this.feedRegistry.feedExists(feed)) {
+        if (this.feedRegistry.getFeedCount(feed) > 1) {
+            this._unregisterFeed(feed);
             var closeEvent = new BCC.Event("onclose", BCC.EventDispatcher.getObjectKey(feed), null);
             BCC.EventDispatcher.dispatch(closeEvent);
+            
+            BCC.EventDispatcher.unregister(feed.id, feed);
+            BCC.EventDispatcher.unregister(feed.feedSettings.feedKey, feed);
         } else {
-            feed.close(this.conn);
-        }
-
-        // Close the connection if the feed registry is now completely empty
-        if (this.feedRegistry.isEmpty()) {
-            this.conn.close();
-            this.conn = null;
+            feed._close(this.conn);
         }
     };
 
@@ -213,7 +208,7 @@ BCC.Context = function() {
      */
     this.project = function(projectName) {
         return new BCC.Project(projectName);
-    }
+    };
 
     /**
      * Unregisters a feed, and if nothing is left in the registry, closes the connection
@@ -222,14 +217,6 @@ BCC.Context = function() {
     this._unregisterFeed = function(closedFeed) {
         if (this.feedRegistry.feedExists(closedFeed)) {
             this.feedRegistry.unRegisterFeed(closedFeed);
-        }
-        
-        BCC.EventDispatcher.unregister(closedFeed.id, closedFeed);
-        BCC.EventDispatcher.unregister(closedFeed.feedSettings.feedKey, closedFeed);
-        
-        if (this.feedRegistry.isEmpty()) {
-            this.conn.close();
-            this.conn = null;
         }
     };
 
@@ -246,7 +233,7 @@ BCC.Context = function() {
         if (waitsFor.ready) {
             stmt();
         } else {
-            var dep = this._getDependencyFromMap(waitsFor)
+            var dep = this._getDependencyFromMap(waitsFor);
             if (dep == null) {
                 this._stmtMap.push(new BCC.Dependency(stmt, waitsFor));
             } else {
@@ -262,7 +249,7 @@ BCC.Context = function() {
                         me.reconnectAttempts = 0;
                     }
                     me._dispatchStatements(this);
-                }
+                };
             }
         }
     };
@@ -342,7 +329,7 @@ BCC.Context = function() {
             }
         },
         5000);
-    }
+    };
 
     this._init();
 };
@@ -364,7 +351,7 @@ BCC.Dependency = function(stmt, waitsFor) {
      * @private
      */
     this._init = function() {
-        this.stmts = new Array();
+        this.stmts = [];
         this.stmts.push(stmt);
         this.depId = this._getObjectId(waitsFor);
     };
@@ -388,7 +375,7 @@ BCC.Dependency = function(stmt, waitsFor) {
     };
 
     this._init();
-}
+};
 
 /**
  * Initializes a new context session.  Currently there can be only one context session with one connection at a time on any given page.  Thus, only plan on calling init once per page load with the proper api key, as any second call to init will dispose of the old context.
@@ -398,10 +385,23 @@ BCC.Dependency = function(stmt, waitsFor) {
  */
 BCC.init = function(apiKey) {
     BCC.Log.debug("Initializing context with api key " + apiKey);
+    if (!!BCC.ContextInstance) {
+        BCC.Log.debug("BCC.ContextInstance already available. Cleaning up the old instance");
+        if(!!BCC.ContextInstance.conn)
+             BCC.ContextInstance.conn.close();
+        var registeredFeeds = BCC.ContextInstance.feedRegistry.getAllFeeds();
+        if(!!registeredFeeds && registeredFeeds.length > 0){
+            for(var index = 0; index < registeredFeeds.length; index++){
+                var feedObj = registeredFeeds[index];
+                var closeEvent = new BCC.Event("onclose", BCC.EventDispatcher.getObjectKey(feedObj), feedObj);
+                BCC.EventDispatcher.dispatch(closeEvent);
+            }
+        }
+    }
     BCC.ContextInstance = new BCC.Context();
     BCC.ContextInstance._initSession(apiKey);
     return BCC.ContextInstance;
-}
+};
 
 /**
  * Checks to see if a context has already been initialized
@@ -409,7 +409,7 @@ BCC.init = function(apiKey) {
  */
 BCC._checkContextExists = function() {
     if (!BCC.ContextInstance) {
-        throw "Context Not Initialized, use BCC.init"
+        throw "Context Not Initialized, use BCC.init";
     }
 };
 
@@ -468,12 +468,12 @@ BCC.fieldMessageValidation = function(shouldValidate) {
     
     if ("undefined" !== typeof(shouldValidate)) {
         if (shouldValidate) {
-            BCC.Context.setValidateMessagesOn();
+            BCC.ContextInstance.setValidateMessagesOn();
         } else {
-            BCC.Context.setValidateMessagesOff();
+            BCC.ContextInstance.setValidateMessagesOff();
         }
     }
     
-    return BCC.Context.getValidateMessagesFlag();
+    return BCC.ContextInstance.getValidateMessagesFlag();
 };
 

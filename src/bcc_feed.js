@@ -132,28 +132,28 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 		}
 		var is = (this.feedSettings.state == stateName);
 		return is;
-	}
+	};
 	
 	/** True if the feed is open, false otherwise */
 	this.isOpen = function() {
 		return this._isInState(BCC.Feed.State.OPEN);
-	}
+	};
 	
 	/** True if the feed is closed, false otherwise */
 	this.isClosed = function() {
 		return this._isInState(BCC.Feed.State.CLOSED);
-	}
+	};
 	
 	/** True if the feed encountered an error, false otherwise */
 	this.hasError = function() {
 		// TODO: probably should leave state alone and instead use a separate error property or array
 		return this._isInState(BCC.Feed.State.ERROR);
-	}
+	};
 	
 	/**
 	 * This method reopens the feed over the connection and is used on reconnect.
 	 */
-	this.reopen = function(connection){
+	this.reopen = function(connection, fr){
 		if (("undefined" == typeof(connection)) || (null === connection)) {
 			BCC.Log.error("Invalid connection object, cannot open " + JSON.stringify(this));
 			return;
@@ -162,7 +162,7 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 		BCC.Log.info("Reopening feed : " + this.feedSettings.procId,"BCC.Feed.reopen");
 		var cmd = new BCC.Command("POST", "/feed/session/create.json", {feed : this.feedSettings});
 		if(this.writeKey != null)
-			cmd.addParam({writeKey: this.writeKey})
+			cmd.addParam({writeKey: this.writeKey});
 		var me = this;
 		cmd.onresponse = function(msg) {
 			BCC.Log.debug("Feed reopened succesfully.", "BCC.Feed.reopen");
@@ -173,11 +173,15 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 			}
 			me.feedSettings.state = "error";
 			BCC.Log.error("Error reopening feed : " + JSON.stringify(err), "BCC.Feed.reopen");
-			var errorEvent = new BCC.Event("onclose", BCC.EventDispatcher.getObjectKey(me), err);
-			BCC.EventDispatcher.dispatch(errorEvent);
+			var feedsForKey = fr.getAllFeedsForKey(me);
+			for(var index = 0; index < feedsForKey.length; index++){
+				var feedObj = feedsForKey[index];
+				var errorEvent = new BCC.Event("onclose", BCC.EventDispatcher.getObjectKey(feedObj), feedObj);
+				BCC.EventDispatcher.dispatch(errorEvent);
+			}
 		};
 		cmd.send(connection);
-	}
+	};
 
 	/**
 	 * This method opens the feed over the connection and registers it with the feedRegistry.
@@ -201,7 +205,7 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 
 		var cmd = new BCC.Command("POST", "/feed/session/create.json", {feed : this.feedSettings});
 		if(this.writeKey != null)
-			cmd.addParam({writeKey: this.writeKey})
+			cmd.addParam({writeKey: this.writeKey});
 			
 		var me = this;
 		
@@ -235,7 +239,16 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 	 * Thus, if switching between only two feeds, it might make more sense to open one, and then close the other
 	 * rather than close one first.  This will avoid unnecessarily closing the connection.</p>
 	 */
-	this.close = function(connection) {
+	this.close = function() {
+		BCC._checkContextExists();
+		BCC.ContextInstance.closeFeed(this);
+	};
+	
+	/**
+	 * Closes the feed with the server
+	 * @private
+	 */
+	this._close = function(connection) {
 		var me = this;
 		
 		var cmd = new BCC.Command("POST", "/feed/session/delete.json", {
@@ -248,6 +261,10 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 			me.conn = null;
 			var closeEvent = new BCC.Event("onclose", BCC.EventDispatcher.getObjectKey(me), me);
 			BCC.EventDispatcher.dispatch(closeEvent);
+			
+	        BCC.EventDispatcher.unregister(me.id, me);
+	        BCC.EventDispatcher.unregister(me.feedSettings.feedKey, me);
+	        me._cleanUpFeed();
 		};
 		
 		cmd.onerror = function(err) {
@@ -258,10 +275,29 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 			BCC.Log.error("Error closing feed: " + err, "BCC.Feed.close");
 			var errorEvent = new BCC.Event("onerror", BCC.EventDispatcher.getObjectKey(me), err);
 			BCC.EventDispatcher.dispatch(errorEvent);
+			
+	        BCC.EventDispatcher.unregister(me.id, me);
+	        BCC.EventDispatcher.unregister(me.feedSettings.feedKey, me);
+	        me._cleanUpFeed();
 		};
 		
 		var cx = ("undefined" == typeof(connection)) ? this.conn : connection;
 		cmd.send(cx);
+	};
+	
+	/**
+	 * Clean up the connection
+	 * @private
+	 */
+	this._cleanUpFeed = function(){
+		BCC._checkContextExists();
+		BCC.ContextInstance._unregisterFeed(this);
+
+        // Close the connection if the feed registry is now completely empty
+        if (BCC.ContextInstance.feedRegistry.isEmpty() & !!BCC.ContextInstance.conn) {
+            BCC.ContextInstance.conn.close();
+            BCC.ContextInstance.conn = null;
+        }
 	};
 
 	/**
@@ -284,21 +320,25 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 
 	/**
 	 * Reloads the feed settings and reregisters the listeners for the new feed id
-	 * @param {JSON}
+	 * @param {object} feedSettings
 	 * @private
 	 */
 	this.reloadFeedSettings = function(feedSettings) {
-		var oldFeedKey = this.feedSettings.feedKey;
-		this.feedSettings = feedSettings;
+		//var oldFeedKey = this.feedSettings.feedKey;
+		BCC.EventDispatcher.register(BCC.EventDispatcher.getObjectKey(this), this);
+		if (listener != null)
+			BCC.EventDispatcher.register(BCC.EventDispatcher.getObjectKey(this), listener);
 
+		this.feedSettings = feedSettings;
+		BCC.EventDispatcher.register(this.feedSettings.feedKey, this);
 		this._extractDateFields(feedSettings);
 		
 		//TODO : Refresh the Feed Handlers
-		var listenerList = BCC.EventDispatcher.getListeners(BCC.EventDispatcher.getObjectKey(this));
+		/*var listenerList = BCC.EventDispatcher.getListeners(BCC.EventDispatcher.getObjectKey(this));
 		for (var i=0; i<listenerList.length; i++){
 			if(oldFeedKey != null) BCC.EventDispatcher.unregister(oldFeedKey, listenerList[i]);
 			BCC.EventDispatcher.register(this.feedSettings.feedKey, listenerList[i]);
-		}
+		}*/
 	};
 
 	/**
@@ -334,22 +374,50 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 	this.sendMsg = this.send;
 	
 	/**
-	 * Sends a get history call for the feed
+	 * Retrieves messages that were sent on a feed in the past.
 	 * @param {number} limit <strong>Optional</strong> - Default 10.  The maximum number of historic messages to fetch.
-	 * @param {date} ending <strong>Optional</strong> - Date object that represents the most recent date of a historic message that is interesting. Any message that occurred later than this date will be filtered out of the results.
+	 * @param {date} ending <strong>Optional</strong> - Date object that represents the most recent date of a historic message that will be returned. Any message that occurred later than this date will be filtered out of the results.
+	 * @param {function} completion <strong>Optional</strong> - Extra completion handler for the onhistory event.  This is only needed if you originally opened the feed using project.feed(), but did not provide an onhistory callback handler.  Method signature: <code>function (feed, history) {}</code>
+	 * @example
+   * // Method A - using a global event handler
+   * p.feed({
+	 *   onopen: function(f) {
+	 *     f.history();
+	 *   },
+	 *   onhistory: function(f, h) {
+	 *     console.log(h); // array of 10 most recent messages
+	 *   }
+   * });
+   * 
+	 * // Method B - using the inline history handler
+	 * f.history(
+	 *   3,	// fetch three messages
+	 *   new Date(2012,0,3), // sent on or before Tue Jan 03 2012 00:00:00 local time
+	 *   function(f,h) {
+	 *     console.log(h);
+	 *   }
+	 * );
 	 */
-	this.getHistory = function(limit, ending, connection) {
-		var me = this;
-		
+	this.history = function(limit, ending, completion) {
+		var me = this,
+				l = limit || 10,
+				e = ending || new Date();
+
+		var sinceTS = (new Date(e)).getTime();
+
 		var cmd = new BCC.Command("GET", "/feed/message/history.json", {
 			feedKey : this.feedSettings.feedKey,
-			limit : limit,
-			sinceTS : ending.getTime()
+			limit : l,
+			sinceTS : sinceTS
 		});
 		
-		cmd.onresponse = function(event) {
-			var historyEvent = new BCC.Event("onhistory", BCC.EventDispatcher.getObjectKey(me), event);
+		cmd.onresponse = function(evt) {
+			var historyEvent = new BCC.Event("onhistory", BCC.EventDispatcher.getObjectKey(me), evt);
 			BCC.EventDispatcher.dispatch(historyEvent);
+
+			if ('function' === typeof(completion)) {
+				completion(me, evt);
+			}
 		};
 		
 		cmd.onerror = function(err) {
@@ -358,13 +426,19 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 			BCC.EventDispatcher.dispatch(errorEvent);
 		};
 		
-		var cx = ("undefined" == typeof(connection)) ? this.conn : connection;
-		cmd.send(cx);
+		this.conn.send(cmd);
+		return true;
 	};
+
+	/**
+	 * Retrieves messages that were sent on a feed in the past.
+	 * @private
+	 */
+	this.getHistory = this.history;
 	
 	this._extractDateFields = function(feedSettings){
 		if(feedSettings.feedType == BCC.Feed.OUTPUT_TYPE){
-			var dateFields = new Array();
+			var dateFields = [];
 			for (var index=0; index<feedSettings.msgContract.length; index++) {
 				if(feedSettings.msgContract[index].fieldType == BCC.Feed.DATE_FIELD){
 					dateFields.push(feedSettings.msgContract[index].fieldName);
@@ -372,7 +446,7 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 			}
 			this.dateFields = dateFields.length > 0 ? dateFields : null;
 		}
-	}
+	};
 
 	this.onfeedmessage = function(msg){
 		if(typeof this.onmsgreceived == "function"){
@@ -381,7 +455,7 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 				for (var index=0; index<this.dateFields.length; index++) {
 					var field = this.dateFields[index];
 					if(Object.prototype.hasOwnProperty.call(msgJson, field))
-					msgJson[field] = new Date(msgJson[field]);
+					msgJson[field] = new Date(parseInt(msgJson[field],10));
 				}
 			}
 			this.onmsgreceived(msgJson);
@@ -433,7 +507,7 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 	 * @name BCC.Feed#onerror
 	 * @event
 	 */
-}
+};
 
 BCC.Feed.INPUT_TYPE = "IN";
 BCC.Feed.OUTPUT_TYPE = "OUT";

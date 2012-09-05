@@ -1,2 +1,5 @@
-docs/
+docs
 .DS_Store
+.komodotools
+node_modules
+build

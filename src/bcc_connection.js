@@ -90,7 +90,7 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
      */
     this.send = function(command) {
         var k = BCC.EventDispatcher.getObjectKey(command);
-   			BCC.EventDispatcher.register(k, command);
+        BCC.EventDispatcher.register(k, command);
 
         command.addParam({
             sid: escape(this.sid)
@@ -251,7 +251,7 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
                 if (me.needsOpening) me._doSocketOpen();
             };
             flashscript.onerror = function() {
-            	BCC.Log.error("Fatal error. Cannot inject dependancy lib (flashsocket)", "BCC.Connection._loadFlashSocket");
+                BCC.Log.error("Fatal error. Cannot inject dependancy lib (flashsocket)", "BCC.Connection._loadFlashSocket");
             };
         }
         if (headNode[0] != null) headNode[0].appendChild(flashscript);
@@ -334,7 +334,7 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
         var pushEndPoint;
         //Hardcoded to Long Poll
         //this.streamingSupport = false;
-        if (this.streamingSupport == null || this.streamingSupport == true)
+        if (this.streamingSupport == null || this.streamingSupport === true)
         pushEndPoint = this.streamUrl;
         else
         pushEndPoint = this.longPollUrl;
@@ -352,7 +352,7 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
                 BCC.Log.debug("Reconnecting to Push Stream", "BCC.Connection._doStreamOpen");
                 me._doStreamOpen();
             };
-            if (this.streamingSupport == null || this.streamingSupport == true) {
+            if (this.streamingSupport == null || this.streamingSupport === true) {
                 this.xhr.onprogress = function() {
                     if (me.streamingSupport == null) {
                         if (me.xhr.getResponseText() == null) {

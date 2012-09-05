@@ -74,13 +74,13 @@ BCC.StreamTokenizer = function (cb) {
 		for (var i=0; i < this.buffer.length; ++i) {
 			var c = this.buffer[i];
 			if (c == '{') {
-				if (0 == this.blockCounter) {
+				if (0 === this.blockCounter) {
 					jsonStartIndex = i;
 				}
 				++this.blockCounter;
 			} else if (c == '}') {
 				--this.blockCounter;
-				if (0 == this.blockCounter) {
+				if (0 === this.blockCounter) {
 					jsonEndIndex = i + 1;
 					this.handleCompleteMessage(jsonStartIndex, jsonEndIndex);
 				} else if (0 > this.blockCounter) {

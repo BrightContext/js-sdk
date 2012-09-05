@@ -11,7 +11,7 @@ BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
 /**
  * @class The object that handles the sending of messages over a feed   
  * @constructor
- * @param {JSON} feedSettings
+ * @param {object} feedSettings
  * @private
  */
 BCC.FeedHandler = function(feedSettings) {
@@ -19,7 +19,8 @@ BCC.FeedHandler = function(feedSettings) {
 	this.lastMsg = null;
 	this.cycleHandler = null;
 	this.activeUserCycleInprogress = false;
-
+	this.msgPending = false;
+	this.msgQueue = [];
 	/**
 	 * Returns the feedSettings JSON
 	 * @returns {object} feedSettings JSON
@@ -30,22 +31,33 @@ BCC.FeedHandler = function(feedSettings) {
 
 	/**
 	 * Sends the message over the feed
-	 * @param {JSON} msg  
+	 * @param {object} msg  
 	 * @param {BCC.Feed} feed 
 	 * @param {BCC.Connection} conn 
 	 * @param {boolean} cycleTriggered Flag that indicates if the method is invoked automatically as part of the active user cycle
 	 */
 	this.sendMsg = function(msg, feed, conn, cycleTriggered){
-		if(!!BCC.ContextInstance.getValidateMessagesFlag() && !this._checkMsgContract(msg)){
-			var event = new BCC.Event("onerror", BCC.EventDispatcher.getObjectKey(feed), "Message contract not honored");
-			BCC.EventDispatcher.dispatch(event);
+		if(!!this.msgPending){
+			BCC.Log.info("Message queued." ,"BCC.FeedHandler.sendMsg");
+			this.msgQueue.push({"msg": msg, "feed" : feed, "conn": conn, "cycleTriggered" : cycleTriggered});
 			return false;
+		}
+		if(!!BCC.ContextInstance.getValidateMessagesFlag()){
+			var error = this._checkMsgContract(msg);
+			if(!!error){
+				var event = new BCC.Event("onerror", BCC.EventDispatcher.getObjectKey(feed), "Message contract not honored. " + error);
+				BCC.EventDispatcher.dispatch(event);
+				return false;
+			}
 		}
 		
 		var state = this._getMsgState(cycleTriggered);
 
 		var command = this._prepareCommand(msg, feed, state);
 		if(!!command){
+			if(state == BCC.STATE_INITIAL || state == BCC.STATE_REVOTE){
+				this.msgPending = true;
+			}
 			command.send(conn);
 
 			if(state == BCC.STATE_INITIAL && this.feedSettings.activeUserFlag){
@@ -63,53 +75,73 @@ BCC.FeedHandler = function(feedSettings) {
 	/**
 	 * Checks if the message adheres to the msgContract of the feed
 	 * @private 
-	 * @param {JSON} msg  
+	 * @param {object} msg  
 	 */
 	this._checkMsgContract = function(msg){
-		var msgJson = ("string" == typeof(msg)) ? JSON.parse(msg) : msg;
-		if ("object" != typeof(msgJson)) {
-			return false;
+        var hasErrors = false;
+        var hasNumberErrors = false;
+        var msgJson = null;
+        try{
+             msgJson = ("string" == typeof(msg)) ? JSON.parse(msg) : msg;	
+        }
+        catch(e){
+            hasErrors = true;
+        }
+        if (!!hasErrors || "object" != typeof(msgJson)) {
+			return "Cannot parse message to JSON";
 		} else {
+			var errorFields = ""; 
 			for (var index=0; index<this.feedSettings.msgContract.length; index++) {
 				var contractKey = this.feedSettings.msgContract[index].fieldName;
 				var hasContractKey = Object.prototype.hasOwnProperty.call(msgJson, contractKey);
 				if (!hasContractKey) {
-					return false;
+					return "Message incomplete";
 				}
 				var fieldType = this.feedSettings.msgContract[index].fieldType;
 				if(fieldType == "N"){
-					if(typeof msgJson[contractKey] != "number")
-						return false;
-					/*if(isNaN(msgJson[contractKey]))
-					return false;*/
-					var validType = this.feedSettings.msgContract[index].validType;
-					if(validType == 1){//Min Max Validation
-						var data = parseFloat(msgJson[contractKey]);
-						var min = !isNaN(parseFloat(this.feedSettings.msgContract[index].min)) ? parseFloat(this.feedSettings.msgContract[index].min) : null;
-						var max = !isNaN(parseFloat(this.feedSettings.msgContract[index].max)) ? parseFloat(this.feedSettings.msgContract[index].max) : null;
-						
-						if(min != null){
-							if(data < min)
-								return false;
-						}
+					hasNumberErrors = false;
+					if(isNaN(parseFloat(msgJson[contractKey]))){
+						hasNumberErrors = true;
+					}
+					if(!!!hasNumberErrors){
+						var validType = this.feedSettings.msgContract[index].validType;
+						if(validType == 1){//Min Max Validation
+							var data = parseFloat(msgJson[contractKey]);
+							var min = !isNaN(parseFloat(this.feedSettings.msgContract[index].min)) ? parseFloat(this.feedSettings.msgContract[index].min) : null;
+							var max = !isNaN(parseFloat(this.feedSettings.msgContract[index].max)) ? parseFloat(this.feedSettings.msgContract[index].max) : null;
+							
+							if(min != null){
+								if(data < min)
+									hasNumberErrors = true;
+							}
 
-						if(max != null){
-							if(data > max)
-								return false;
+							if(max != null){
+								if(data > max)
+									hasNumberErrors = true;
+									
+							}
 						}
+					}
+					if(!!hasNumberErrors){
+						errorFields += contractKey + ", ";
 					}
 				} else if(fieldType == "D"){
 					var dateVal = msgJson[contractKey];
-					if(typeof dateVal != "object")
-						return false;
-					else if(typeof dateVal == "object" && typeof dateVal.getTime != "function")
-						return false;
+					var ts = new Date(dateVal).getTime();
+					if(ts === "undefined" || ts === null || isNaN(ts) || ts === 0){
+						errorFields += contractKey + ", ";
+					} 
 				} else if(fieldType == "S"){
-					if(typeof msgJson[contractKey] != "string")
-						return false;
+					if(typeof (msgJson[contractKey]) == "object")
+						errorFields += contractKey + ", ";
 				}
 			}
-			return true;
+			if(!!!errorFields)
+				return null;
+			else{
+				errorFields = errorFields.substring(0, errorFields.length -2);
+				return "Fields with errors : " + errorFields;
+			}
 		}
 	};
 
@@ -136,7 +168,7 @@ BCC.FeedHandler = function(feedSettings) {
 	/**
 	 * Converts the message(JSON) to a command (BCC.Command) 
 	 * @private
-	 * @param {JSON} msg 
+	 * @param {object} msg 
 	 * @param {BCC.Feed} feed
 	 * @param {string} state INITIAL/UPDATE/REVOTE
 	 */
@@ -169,7 +201,7 @@ BCC.FeedHandler = function(feedSettings) {
 				if(hasContractKey){
 					var dt = this.feedSettings.msgContract[index].fieldType;
 					if(dt == "D"){
-						msgJson[contractKey] = msgJson[contractKey].getTime();
+						msgJson[contractKey] = new Date(msgJson[contractKey]).getTime();
 					}
 				}
 			}
@@ -190,7 +222,7 @@ BCC.FeedHandler = function(feedSettings) {
 			}
 		}
 		
-		this.lastMsg = this.lastMsg == null ? new Object() : this.lastMsg;
+		this.lastMsg = this.lastMsg == null ? {} : this.lastMsg;
 		this.lastMsg.msg = origMsg;
 		this.lastMsg.feed = feed;
 		
@@ -201,7 +233,7 @@ BCC.FeedHandler = function(feedSettings) {
 		var md = {
 			feedKey: feed.getFeedKey()
 		};
-		if (undefined != state) {
+		if (undefined !== state) {
 			md.state = state;
 		}
 		if(state == BCC.STATE_UPDATE){
@@ -219,6 +251,8 @@ BCC.FeedHandler = function(feedSettings) {
 			if(response != null && response.tslot != null){
 				if(state == BCC.STATE_INITIAL || state == BCC.STATE_REVOTE){
 					me.lastMsg.ts = response.tslot;
+					me.msgPending = false;
+					me._popMsgQueue();
 				}
 			}
 			var onmsgevt = new BCC.Event("onmsgsent", BCC.EventDispatcher.getObjectKey(feed), msgJson);
@@ -227,8 +261,21 @@ BCC.FeedHandler = function(feedSettings) {
 		command.onerror = function(err) {
 			var onerrorevent = new BCC.Event("onerror", BCC.EventDispatcher.getObjectKey(feed), err);
 			BCC.EventDispatcher.dispatch(onerrorevent);
-		}
+		};
 		return command;
+	};
+	
+	/**
+	 * Pops and sends messages from the msgQueue
+	 * @private
+	 */
+	this._popMsgQueue = function(){
+		for(var index in this.msgQueue){
+			var msgObj = this.msgQueue[index];
+			this.sendMsg(msgObj.msg, msgObj.feed, msgObj.conn, msgObj.cycleTriggered);
+			BCC.Log.info("Message sent from queue : " + JSON.stringify(msgObj.msg),"BCC.FeedHandler._popMsgQueue");
+		}
+		this.msgQueue = [];
 	};
 
 	/**

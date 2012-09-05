@@ -26,7 +26,7 @@ BCC.Session = function(apiKey) {
 	 * @private
 	 */
 	this._init = function(){
-		if ((this.apiKey == null) || (BCC.Util.trim(this.apiKey) == "")) {
+		if ((this.apiKey == null) || (BCC.Util.trim(this.apiKey) === "")) {
 			BCC.Log.error("API Key missing.","BCC.Session.constructor");
 			return;
 		}
@@ -42,7 +42,7 @@ BCC.Session = function(apiKey) {
 	this._openSession = function(){
 		var me = this;
 		var onerror = function(){
-			BCC.Log.error("Session Open Failed", "BCC.Session._openSession");
+			BCC.Log.error(me.xhr.getResponseText(), "BCC.Session._openSession");
 			
 			if ("function" == typeof(me.onerror)) {
 				me.onerror("Session Open Failed");
@@ -92,15 +92,15 @@ BCC.Session = function(apiKey) {
 
 	        swfScript.onreadystatechange = function() {
 	            if (this.readyState == 'loaded' || this.readyState == 'complete') {
-	            	me._injectJSONlib();
+                     me._injectJSONlib();
 	            }
 	        };
 	        if (swfScript.readyState == null) {
-	        	swfScript.onload = function() {
-	        		me._injectJSONlib();
+                swfScript.onload = function() {
+                     me._injectJSONlib();
 	            };
 	            swfScript.onerror = function() {
-	            	BCC.Log.error("Fatal error. Cannot inject dependancy lib (swfobject)", "BCC.Session._injectSWFObjectlib");
+                     BCC.Log.error("Fatal error. Cannot inject dependancy lib (swfobject)", "BCC.Session._injectSWFObjectlib");
 	            };
 	        }
 	        if (headNode[0] != null) headNode[0].appendChild(swfScript);
@@ -121,15 +121,15 @@ BCC.Session = function(apiKey) {
 	        
 	        jsonScript.onreadystatechange = function() {
 	            if (this.readyState == 'loaded' || this.readyState == 'complete') {
-	            	me._openSession();
+                     me._openSession();
 	            }
 	        };
 	        if (jsonScript.readyState == null) {
-	        	jsonScript.onload = function() {
-	        		me._openSession();
+                jsonScript.onload = function() {
+                     me._openSession();
 	            };
 	            jsonScript.onerror = function() {
-	            	BCC.Log.error("Fatal error. Cannot inject dependancy lib (json2)", "BCC.Session._injectSWFObjectlib");
+                     BCC.Log.error("Fatal error. Cannot inject dependancy lib (json2)", "BCC.Session._injectSWFObjectlib");
 	            };
 	        }
 	        if (headNode[0] != null) headNode[0].appendChild(jsonScript);
@@ -143,7 +143,7 @@ BCC.Session = function(apiKey) {
 					 (null !== this.sessionObj) &&
 					 ("undefined" == typeof(this.sessionObj.error)));
 		return valid;
-	}
+	};
 
 	/**
 	 * Synchronizes with server to get new Session details 

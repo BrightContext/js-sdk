@@ -25,7 +25,8 @@ BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
  * });
  */
 BCC.Project = function(projectName) {
-  var me = this;
+    var me = this;
+
     this._projectName = projectName;
     this._channelMetadataCache = {};
 
@@ -185,8 +186,13 @@ BCC.Project = function(projectName) {
                     f = new BCC.Feed(procId);
                 }
 
-                if (f !== null && feedDescription.writeKey !== null) {
-                  f.setWriteKey(feedDescription.writeKey);
+                // support for both mixed case and all lowercase
+                if (f) {
+                    if ("string" === typeof(feedDescription.writeKey)) {
+                      f.setWriteKey(feedDescription.writeKey);
+                    } else if ("string" === typeof(feedDescription.writekey)) {
+                      f.setWriteKey(feedDescription.writekey);
+                    }
                 }
 
                 // event wiring
@@ -220,8 +226,6 @@ BCC.Project = function(projectName) {
                     if ("function" == typeof(feedDescription.onclose)) {
                         feedDescription.onclose(closedFeed);
                     }
-
-                    BCC.ContextInstance._unregisterFeed(closedFeed);
                 };
 
                 // open

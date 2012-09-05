@@ -12,7 +12,7 @@ BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
  * @class The BCC event oriented Command object. BCC.Command encapsulates XHR, XDomainRequest and FLXHR for cross domain calls
  * @param {string} method		"POST" or "GET"
  * @param {string} cmdString  /path/to/api.json
- * @param {JSON} parameters  {param1:value1, param2:value2, ..}
+ * @param {object} parameters  {param1:value1, param2:value2, ..}
  * @private
  */
 BCC.Command = function(method, cmdString, parameters) {
@@ -34,11 +34,11 @@ BCC.Command = function(method, cmdString, parameters) {
 
 	/**
 	 * Adds parameters to the object
-	 * @param {JSON} param  {<param1>:<value1>, <param2>:<value2>, ..}
+	 * @param {object} param  {<param1>:<value1>, <param2>:<value2>, ..}
 	 */
 	this.addParam = function(param){
 		if(this.parameters == null)
-			this.parameters = new Object();
+			this.parameters = {};
 		for(var key in param) {
 			this.parameters[key] = param[key];
 		}

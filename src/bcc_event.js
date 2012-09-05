@@ -13,7 +13,7 @@ BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
  * @constructor
  * @param {string} eventType
  * @param {string} eventKey
- * @param {JSON} msg
+ * @param {object} msg
  * @private
  */
 BCC.Event = function(eventType, eventKey, msg) {
@@ -49,7 +49,7 @@ BCC.EventDispatcher = {
 		 * @private
 		 */
 		_init : function(){
-			BCC.EventDispatcher.listenerMap = new Array();
+			BCC.EventDispatcher.listenerMap = [];
 		},
 		/**
 		 * Assigns and returns an id to the BCC event oriented object
@@ -154,7 +154,7 @@ BCC.Listener = function(key, listenerObj){
 			return;
 		}
 		this.key = key;
-		this.listeners = new Array();
+		this.listeners = [];
 		this.listeners.push(listenerObj);
 	};
 	/**

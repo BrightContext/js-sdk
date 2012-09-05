@@ -1,0 +1,28 @@
+{
+  "name": "brightcontext-js-sdk",
+  "organization": "BrightContext Corporation",
+  "homepage": "http://brightcontext.com",
+  "version": "1.2.2",
+  "description": "JavaScript SDK for BrightContext API",
+  "dependencies": {
+    "grunt-exec" : ">=0.1.1",
+    "grunt-jasmine-task" : ">=0.2.0",
+    "grunt" : ">=0.3.11"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BrightContext/js-sdk.git"
+  },
+  "scripts": {
+    "test": "grunt jasmine"
+  },
+  "keywords": [
+    "cli",
+    "http",
+    "server"
+  ],
+  "engine": {
+    "node": ">=0.6.0"
+  },
+  "license": "MIT"
+}

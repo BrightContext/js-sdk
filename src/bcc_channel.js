@@ -37,7 +37,7 @@ BCC.Channel = function(description) {
     /** @returns {string} The type of the channel.  <code>UNPROCESSED</code> or <code>PROCESSED</code> */
     this.type = function() {
         return this._md.channelType;
-    }
+    };
 
     /** @returns {Array} All the feed metadata inside the channel */
     this.feeds = function() {
@@ -100,8 +100,8 @@ BCC.Channel = function(description) {
                       });
                   });
                   return ok;*/
-            	  var ok = checkArrayElements(array1, array2);
-            	  return ok;
+                  var ok = checkArrayElements(array1, array2);
+                  return ok;
               } else {
                   return false;
               }
@@ -111,20 +111,20 @@ BCC.Channel = function(description) {
     };
     
     var checkArrayElements = function(array1, array2){
-    	for(var index1 = 0; index1 < array1.length; index1++){
-    		var itemFound = false;
-    		var ele1 = array1[index1];
-    		for(var index2 = 0; index2 < array2.length; index2++){
-    			var ele2 = array2[index2];
-    			if(ele1 == ele2){
-    				itemFound = true;
-    				break;
-    			}
-    		}
-    		if(!itemFound)
-    			return false;
-    	}
-    	return true;
+       for(var index1 = 0; index1 < array1.length; index1++){
+            var itemFound = false;
+            var ele1 = array1[index1];
+            for(var index2 = 0; index2 < array2.length; index2++){
+                var ele2 = array2[index2];
+                if(ele1 == ele2){
+                    itemFound = true;
+                    break;
+                }
+            }
+            if(!itemFound)
+                 return false;
+        }
+        return true;
     };
 
     this.validFilter = function(feedInfo, filterObj) {
@@ -146,22 +146,22 @@ BCC.Channel = function(description) {
     };
 
     this._filterByType = function(list, ft) {
-    	var arr = new Array();
-    	for(var index in list){
-    		if(list[index].feedType == ft)
-    			arr.push(list[index]);
-    	};
-    	return (0 === arr.length) ? null: arr;
+        var arr = [];
+        for(var index in list){
+            if(list[index].feedType == ft)
+                 arr.push(list[index]);
+        }
+        return (0 === arr.length) ? null: arr;
     };
     this._filterByName = function(list, n) {
-    	var f = null;
-    	for(var index in list){
-    		if(list[index].name == n){
-    			f = list[index];
-    			break;
-    		}
-    	}
-    	return f;
+        var f = null;
+        for(var index in list){
+            if(list[index].name == n){
+                f = list[index];
+                break;
+            }
+        }
+        return f;
     };
 
     //this._init = function() {
