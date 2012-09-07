@@ -54,6 +54,8 @@ BCC.FeedHandler = function(feedSettings) {
 		var state = this._getMsgState(cycleTriggered);
 
 		var command = this._prepareCommand(msg, feed, state);
+		state = (!!command && !!command.parameters  && !!command.parameters.metadata) ? command.parameters.metadata.state : state;
+		
 		if(!!command){
 			if(state == BCC.STATE_INITIAL || state == BCC.STATE_REVOTE){
 				this.msgPending = true;
@@ -181,9 +183,44 @@ BCC.FeedHandler = function(feedSettings) {
 		}
 		
 		// manipulate the message guts when using active user feed
-		try{
+		try {
+			var activeUserFields = this.feedSettings.activeUserFields;
+			
+			for (var index=0; index<this.feedSettings.msgContract.length; index++) {
+				var contractKey = this.feedSettings.msgContract[index].fieldName;
+				var hasContractKey = Object.prototype.hasOwnProperty.call(msgJson, contractKey);
+				if (hasContractKey) {
+					var isActiveField = false;
+					for (var i in activeUserFields) {
+						if(contractKey == activeUserFields[i]){
+							isActiveField = true;
+							break;
+						}
+					}
+					if(isActiveField)
+						continue;
+
+					// fix dates
+					var dt = this.feedSettings.msgContract[index].fieldType;
+					if (dt == "D") {
+						msgJson[contractKey] = new Date(msgJson[contractKey]).getTime();
+					}
+					 
+					// test for dimension shift
+					if (BCC.STATE_UPDATE == state) {
+						var oldValue = this.lastMsg.msg[contractKey];
+						var newValue = msgJson[contractKey];
+						if (oldValue != newValue) {
+							clearTimeout(this.cycleHandler);
+							state = BCC.STATE_INITIAL;
+						}
+					}
+
+				}
+			}
+
+			// adjust values if we are still doing an update
 			if (BCC.STATE_UPDATE == state) {
-				var activeUserFields = this.feedSettings.activeUserFields;
 				for (var k in activeUserFields) {
 					var activeUserFieldName = activeUserFields[k];
 					var msgHasProp = Object.hasOwnProperty.call(msgJson, activeUserFieldName);
@@ -191,17 +228,6 @@ BCC.FeedHandler = function(feedSettings) {
 					
 					if (msgHasProp && lastMsgHasProp) {
 						msgJson[activeUserFieldName] = msgJson[activeUserFieldName] - this.lastMsg.msg[activeUserFieldName];
-					}
-				}
-			}
-			
-			for (var index=0; index<this.feedSettings.msgContract.length; index++) {
-				var contractKey = this.feedSettings.msgContract[index].fieldName;
-				var hasContractKey = Object.prototype.hasOwnProperty.call(msgJson, contractKey);
-				if(hasContractKey){
-					var dt = this.feedSettings.msgContract[index].fieldType;
-					if(dt == "D"){
-						msgJson[contractKey] = new Date(msgJson[contractKey]).getTime();
 					}
 				}
 			}

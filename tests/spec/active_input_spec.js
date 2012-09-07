@@ -5,7 +5,13 @@ describe("active inputs", function() {
 		input_feed: 'i',
 		output_feed: 'o'
 	};
-	
+
+	var active_channel_with_dim = {
+		name: 'active with dim',
+		input_feed: 'i',
+		output_feed: 'o'
+	};
+
 	var ctx = null;
 	var p = null;
 	
@@ -53,7 +59,7 @@ describe("active inputs", function() {
 		var msg = {n: initial_value};
 		var msg1 = {n: updated_value};
 		var inputHandler = new BCC_TEST.Listener();
-		quantChannelUseCase(msg, inputHandler);
+		quantChannelUseCase(active_channel, msg, inputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.out_messages.length);
@@ -92,7 +98,7 @@ describe("active inputs", function() {
 		var msg = {n: initial_value};
 		var msg1 = {n: updated_value};
 		var inputHandler = new BCC_TEST.Listener();
-		quantChannelUseCase(msg, inputHandler);
+		quantChannelUseCase(active_channel, msg, inputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.out_messages.length);
@@ -131,7 +137,7 @@ describe("active inputs", function() {
 		var msg = {n: initial_value};
 		var msg1 = {n: updated_value};
 		var inputHandler = new BCC_TEST.Listener();
-		quantChannelUseCase(msg, inputHandler);
+		quantChannelUseCase(active_channel, msg, inputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.out_messages.length);
@@ -164,10 +170,92 @@ describe("active inputs", function() {
 		});
 	});
 	
-	var quantChannelUseCase = function(msg, inputHandler){
+	it("should not switch from update to initial on vote change", function() {
+		var initial_value = 100;
+		var male = "M";
+		var female = "F";
+		var updated_value = 120;
+		var msg = {vote: initial_value, sex: male};
+		var msg1 = {vote: updated_value, sex: male};
+		var inputHandler = new BCC_TEST.Listener();
+		quantChannelUseCase(active_channel_with_dim, msg, inputHandler);
+		
+		waitsFor(function() {
+			return (0 !== inputHandler.out_messages.length);
+		}, "feed message send", BCC_TEST.TIMEOUT);
+		
+		runs(function() {
+			expect(inputHandler.errors.length).toEqual(0);
+			
+			for (var i in inputHandler.out_messages){
+				var m = inputHandler.out_messages[i];
+				expect(m.vote).toEqual(msg.vote);
+			}
+			inputHandler.reset();
+		});
+
+		runs(function(){
+			inputHandler.f.send(msg1);
+		});
+		
+		waitsFor(function() {
+			return (0 !== inputHandler.out_messages.length);
+		}, "feed message send", BCC_TEST.TIMEOUT);
+		
+		runs(function() {
+			expect(inputHandler.errors.length).toEqual(0);
+			for (var i in inputHandler.out_messages){
+				var m = inputHandler.out_messages[i];
+				expect(m.vote).toEqual(updated_value - initial_value);
+			}
+		});
+	});
+
+	it("should switch from update to initial on dimension change", function() {
+		var initial_value = 100;
+		var updated_value = 120;
+		var male = "M";
+		var female = "F";
+		var msg = {vote: initial_value, sex: male};
+		var msg1 = {vote: updated_value, sex: female};
+		var inputHandler = new BCC_TEST.Listener();
+		quantChannelUseCase(active_channel_with_dim, msg, inputHandler);
+		
+		waitsFor(function() {
+			return (0 !== inputHandler.out_messages.length);
+		}, "feed message send", BCC_TEST.TIMEOUT);
+		
+		runs(function() {
+			expect(inputHandler.errors.length).toEqual(0);
+			
+			for (var i in inputHandler.out_messages){
+				var m = inputHandler.out_messages[i];
+				expect(m.vote).toEqual(msg.vote);
+			}
+			inputHandler.reset();
+		});
+
+		runs(function(){
+			inputHandler.f.send(msg1);
+		});
+		
+		waitsFor(function() {
+			return (0 !== inputHandler.out_messages.length);
+		}, "feed message send", BCC_TEST.TIMEOUT);
+		
+		runs(function() {
+			expect(inputHandler.errors.length).toEqual(0);
+			for (var i in inputHandler.out_messages){
+				var m = inputHandler.out_messages[i];
+				expect(m.vote).toEqual(updated_value);
+			}
+		});
+	});
+
+	var quantChannelUseCase = function(chn, msg, inputHandler){
 		p.feed({
-			channel: active_channel.name,
-			name: active_channel.input_feed,
+			channel: chn.name,
+			name: chn.input_feed,
 			onopen: inputHandler.onopen,
 			onclose: inputHandler.onclose,
 			onmsgreceived: inputHandler.onmsgreceived,

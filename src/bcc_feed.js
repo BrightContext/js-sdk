@@ -375,6 +375,7 @@ BCC.Feed = function(procId, filters, writeKey, listener) {
 	
 	/**
 	 * Retrieves messages that were sent on a feed in the past.
+	 * Available only for feeds using ChannelWrite to store channel data.
 	 * @param {number} limit <strong>Optional</strong> - Default 10.  The maximum number of historic messages to fetch.
 	 * @param {date} ending <strong>Optional</strong> - Date object that represents the most recent date of a historic message that will be returned. Any message that occurred later than this date will be filtered out of the results.
 	 * @param {function} completion <strong>Optional</strong> - Extra completion handler for the onhistory event.  This is only needed if you originally opened the feed using project.feed(), but did not provide an onhistory callback handler.  Method signature: <code>function (feed, history) {}</code>
