@@ -32,11 +32,11 @@ BCC.StreamTokenizer = function (cb) {
 	 * @param {int} statementEndIndex
 	 */
 	this.resetBuffer = function(statementEndIndex) {
-		if (typeof(statementEndIndex) == "number") {
+		var end = statementEndIndex || 0;
+		if (0 !== end) {
 			this.buffer = this.buffer.substring(statementEndIndex);
 		} else {
 			this.buffer = "";
-			this.blockCounter = 0;
 		}
 	};
 	
@@ -69,28 +69,32 @@ BCC.StreamTokenizer = function (cb) {
 	 * Parses and dispatches JSONs from the buffer
 	 */
 	this.analyzeBufferData = function() {
-		var jsonStartIndex = 0;
-		var jsonEndIndex = 0;
+		var jsonStartIndex = 0,
+				jsonEndIndex = 0,
+				blockCounter = 0;
+
 		for (var i=0; i < this.buffer.length; ++i) {
 			var c = this.buffer[i];
 			if (c == '{') {
-				if (0 === this.blockCounter) {
+				if (0 === blockCounter) {
 					jsonStartIndex = i;
 				}
-				++this.blockCounter;
+				++blockCounter;
 			} else if (c == '}') {
-				--this.blockCounter;
-				if (0 === this.blockCounter) {
+				--blockCounter;
+				if (0 === blockCounter) {
 					jsonEndIndex = i + 1;
 					this.handleCompleteMessage(jsonStartIndex, jsonEndIndex);
-				} else if (0 > this.blockCounter) {
+				} else if (0 > blockCounter) {
 					BCC.Log.error("Invalid data stream, buffer reset","BCC.StreamTokenizer.analyzeBufferData");
 					this.resetBuffer();
 				}
 			}
 		}
-		if(jsonEndIndex >0)
+		
+		if (0 !== jsonEndIndex) {
 			this.resetBuffer(jsonEndIndex);
+		}
 	};
 
 	/**

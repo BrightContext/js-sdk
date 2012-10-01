@@ -291,7 +291,7 @@ BCC.Context = function() {
      */
     this._createConnection = function(stmt) {
         if (this.conn == null) {
-            this.conn = new BCC.Connection(this.session.getSessId(), this.session.getSocketUrl(), this.session.getStreamUrl(), this.session.getLongPollUrl(), this.session.getRestUrl(), 45);
+            this.conn = new BCC.Connection(this.session, 45);
             this.conn.onmessage = function(event) {
                 //BCC.Log.info("Message received over connection : " + JSON.stringify(event),"BCC.Context.conn.onmessage");
                 BCC.EventDispatcher.dispatch(event);

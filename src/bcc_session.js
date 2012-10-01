@@ -218,6 +218,12 @@ BCC.Session = function(apiKey) {
 		return ws.replace(/\/$/,'') + "/" + BCC.API_COMMAND_ROOT.replace(/^\//,'') + "/feed/ws";
 	};
 
+	this.getSocketFallbackUrl = function () {
+		var ws = this.sessionObj.domain.replace("http://", "ws://");
+		//return ws + "/socket.ws";
+		return ws.replace(/\/$/,'') + ":8080/" + BCC.API_COMMAND_ROOT.replace(/^\//,'') + "/feed/ws";
+	};
+
 	/**
 	 * Returns the REST url
 	 * @returns {string}

@@ -61,3 +61,13 @@ BCC_TEST.Listener = function() {
 		listener.errors.push(error);
 	};
 };
+
+BCC_TEST.buildPayload = function (payload_size) {
+	var data = [];
+	data.push("{ \"d\": \"");
+	for (i = 0; i!=payload_size; ++i) {
+		data.push('x');
+	}
+	data.push("\" }");
+	return data;
+};

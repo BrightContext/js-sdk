@@ -41,7 +41,7 @@ describe("connection", function() {
 		}, "Session Open timed out", BCC_TEST.TIMEOUT);
 		
 		runs(function(){
-			conn = new BCC.Connection(sess.getSessId(), sess.getSocketUrl(), sess.getStreamUrl(), sess.getLongPollUrl(), sess.getRestUrl(), 45);
+			conn = new BCC.Connection(sess, 45);
 			setConnType(type, conn);
 			conn._init();
 			conn.onopen = function(){hasError = false; connOpenCallReturned = true;};

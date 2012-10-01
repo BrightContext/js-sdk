@@ -11,20 +11,19 @@ BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
 /**
  * @class The BCC Connection object that encapsulates Web Sockets, Flash Sockets, Web Streaming and Long Polling
  * @constructor
- * @param {string} sid  SessionID
- * @param {string} wsUrl  Web Socket URL
- * @param {string} streamUrl  Web Streaming URL
- * @param {string} longPollUrl  Long Poll URL
- * @param {string} restUrl  REST API Call URL
+ * @param {object} session  BCC.Session instance
  * @param {int} hbCycle  Time Duration of the heart beat cycle in Secs
  * @private
  */
-BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) {
-    this.sid = sid;
-    this.wsUrl = wsUrl;
-    this.streamUrl = streamUrl;
-    this.longPollUrl = longPollUrl;
-    this.restUrl = restUrl;
+BCC.Connection = function(session, hbCycle) {
+    this.sid = session.getSessId();
+    
+    this.wsUrl = session.getSocketUrl();
+    this.wsFallbackUrl = session.getSocketFallbackUrl();
+    this.streamUrl = session.getStreamUrl();
+    this.longPollUrl = session.getLongPollUrl();
+    this.restUrl = session.getRestUrl();
+
     this.hbCycle = hbCycle * 1000;
 
     this.mode = null;
@@ -53,15 +52,26 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
      */
     this.open = function() {
         if (this._socketSupport()) {
-            if (this.socketReady)
-            this._doSocketOpen();
-            else
-            this.needsOpening = true;
+            if (this.socketReady) {
+                this._doSocketOpen();
+            } else {
+                this.needsOpening = true;
+            }
         } else {
-            this._doStreamOpen();
-            this.ready = true;
-            BCC.Log.info("Connection Opened.", "BCC.Connection.open");
-            if (this.onopen != null)
+            this.openStream();
+        }
+    };
+
+    /**
+     * Opens a streaming connection, bypassing the socket
+     * @private
+     */
+    this.openStream = function () {
+        this._createTokenizer();
+        this._doStreamOpen();
+        this.ready = true;
+        BCC.Log.info("Connection Opened.", "BCC.Connection.open");
+        if (this.onopen != null) {
             this.onopen();
         }
     };
@@ -71,16 +81,18 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
      */
     this.close = function() {
         BCC.Log.info("Attempting to close connection", "BCC.Connection.close");
-        if (this._socketSupport()) {
-            this._stopHeartbeat();
+
+        this._stopHeartbeat();
+
+        if (!!this.socket) {
             this.closeInitiated = true;
             this.socket.close();
-        }
-        else {
+        } else {
             this._closeStream();
             BCC.Log.info("Connection closed.", "BCC.Connection.close");
-            if (this.onclose != null)
-            this.onclose();
+            if (this.onclose != null) {
+                this.onclose();
+            }
         }
     };
 
@@ -109,9 +121,9 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
             var xhr = new BCC.Ajax();
             xhr.onload = function() {
                 var o = JSON.parse(xhr.getResponseText());
-                if (typeof(o) == "undefined")
-                BCC.Log.error("Unable to evaluate object from payload", "BCC.Connection.onmessage");
-                else {
+                if (typeof(o) == "undefined") {
+                    BCC.Log.error("Unable to evaluate object from payload", "BCC.Connection.onmessage");
+                } else {
                     var e = me._createEventFromResponse(o);
                     me.onmessage(e);
                 }
@@ -148,10 +160,11 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
             return false;
         }
 
-        if (this.mode == BCC.WEBSOCKET || this.mode == BCC.FLASHSOCKET)
-        return true;
-        else
-        return false;
+        if (this.mode == BCC.WEBSOCKET || this.mode == BCC.FLASHSOCKET) {
+            return true;
+        } else {
+            return false;
+        }
     };
 
     /**
@@ -166,10 +179,15 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
 
         //Hardcoded
         //return false;
-        if (this.mode != BCC.FLASHSOCKET && (window.WebSocket || window.MozWebSocket))
-        return true;
-        else
-        return false;
+        if (this.mode != BCC.FLASHSOCKET && (window.WebSocket || window.MozWebSocket)) {
+            return true;
+        } else {
+            return false;
+        }
+    };
+
+    this._hasFlash = function () {
+        return (swfobject.getFlashPlayerVersion().major >= 10);
     };
 
     /**
@@ -184,16 +202,27 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
 
         //Hardcoded
         //return false;
-        if (this.mode == BCC.FLASHSOCKET)
-        return true;
-        else if (this.mode == null && swfobject.getFlashPlayerVersion().major >= 10)
-        return true;
-        else
-        return false;
+        if (this.mode == BCC.FLASHSOCKET) {
+            return true;
+        } else if (this.mode == null && this._hasFlash()) {
+            return true;
+        } else {
+            return false;
+        }
+    };
+
+    this._fallbackToWebStreaming = function () {
+        // no socket support at all
+        BCC.Log.debug("Socket support not available", "BCC.Connection.constructor");
+        BCC.Log.debug("Falling back to Web Streaming", "BCC.Connection.constructor");
+        this.mode = BCC.STREAMORPOLL;
+        // BCC.Ajax will throw an error if it turns out this isn't even supported
+        this.socket = null;
+        this.openStream();
     };
 
     /**
-     * Checks for the socket and web streaming support and loads the librairies (only for Flash Sockets)
+     * Checks for the socket and web streaming support and loads the libraries (only for Flash Sockets)
      * @private
      */
     this._loadSocket = function() {
@@ -201,8 +230,7 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
             BCC.Log.debug("WebSocket support available", "BCC.Connection.constructor");
             this.mode = BCC.WEBSOCKET;
             this.socketReady = true;
-        }
-        else if (this._isFlashSocket()) {
+        } else if (this._isFlashSocket()) {
             BCC.Log.debug("FlashSocket support available", "BCC.Connection.constructor");
             this.mode = BCC.FLASHSOCKET;
             if (!BCC.Connection.FlashSocketLoaded) {
@@ -212,15 +240,8 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
             } else {
                 this.socketReady = true;
             }
-        }
-        else {
-            // no socket support at all
-            BCC.Log.debug("Socket support not available", "BCC.Connection.constructor");
-            BCC.Log.debug("Falling back to Web Streaming", "BCC.Connection.constructor");
-            this.mode = BCC.STREAMORPOLL;
-            // BCC.Ajax will throw an error if it turns out this isn't even supported
-            this.socket = null;
-            this._createTokenizer();
+        } else {
+            this._fallbackToWebStreaming();
         }
     };
 
@@ -241,20 +262,27 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
             if (this.readyState == 'loaded' || this.readyState == 'complete') {
                 me.socketReady = true;
                 BCC.Connection.FlashSocketLoaded = true;
-                if (me.needsOpening) me._doSocketOpen();
+                if (me.needsOpening) {
+                    me._doSocketOpen();
+                }
             }
         };
         if (flashscript.readyState == null) {
             flashscript.onload = function() {
                 me.socketReady = true;
                 BCC.Connection.FlashSocketLoaded = true;
-                if (me.needsOpening) me._doSocketOpen();
+                if (me.needsOpening) {
+                    me._doSocketOpen();
+                }
             };
             flashscript.onerror = function() {
                 BCC.Log.error("Fatal error. Cannot inject dependancy lib (flashsocket)", "BCC.Connection._loadFlashSocket");
             };
         }
-        if (headNode[0] != null) headNode[0].appendChild(flashscript);
+
+        if (headNode[0] != null) {
+            headNode[0].appendChild(flashscript);
+        }
     };
 
     /**
@@ -262,8 +290,9 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
      * @private
      */
     this._stopHeartbeat = function() {
-        if (this.hbTimerHandler != null)
-        clearTimeout(this.hbTimerHandler);
+        if (this.hbTimerHandler != null) {
+            clearTimeout(this.hbTimerHandler);
+        }
     };
 
     /**
@@ -286,30 +315,51 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
      * Opens the socket and registers the various event handlers
      * @private
      */
-    this._doSocketOpen = function() {
+    this._doSocketOpen = function(using_alternative_port) {
         var WebSocket = window.WebSocket || window.MozWebSocket;
         BCC.Log.info("Socket connect initiated...", "BCC.Connection._doSocketOpen");
 
-        this.socket = new WebSocket(this.wsUrl + "?sid=" + this.sid);
+        var socketUrl = (using_alternative_port) ? this.wsFallbackUrl : this.wsUrl;
+        this.socket = new WebSocket(socketUrl + "?sid=" + this.sid);
+
         var me = this;
+
+        var tryAlternateSocket = function () {
+            me._stopHeartbeat();
+            me._doSocketOpen(true);
+        };
+
+        var fallback = function(event) {
+            me._stopHeartbeat();
+            try {
+                me._fallbackToWebStreaming();
+            } catch (ex) {
+                BCC.Log.error(ex);
+            }
+        };
+
         this.socket.onopen = function(event) {
             BCC.Log.info("Connection opened.", "BCC.Connection.socket.onopen");
             me.ready = true;
             me._sendHeartbeat();
-            if (me.onopen != null)
-            me.onopen();
+            if (me.onopen != null) {
+                me.onopen();
+            }
         };
         this.socket.onclose = function(event) {
             if (me.closeInitiated) {
                 BCC.Log.info("Connection closed.", "BCC.Connection.socket.onclose");
                 me.closeInitiated = false;
-                if (me.onclose != null)
-                me.onclose();
+                if (me.onclose != null) {
+                    me.onclose();
+                }
             } else {
-                me._stopHeartbeat();
                 BCC.Log.info("Connection Error.", "BCC.Connection.socket.onclose");
-                if (me.onerror != null)
-                me.onerror();
+                if (!using_alternative_port) {
+                    tryAlternateSocket();
+                } else {
+                    fallback();
+                }
             }
         };
         this.socket.onmessage = function(event) {
@@ -323,6 +373,14 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
                 }
             }
         };
+        this.socket.onerror = function(event) {
+            BCC.Log.info("Connection Error.", "BCC.Connection.socket.onerror");
+            if (!using_alternative_port) {
+                tryAlternateSocket();
+            } else {
+                fallback();
+            }
+        };
     };
 
     /**
@@ -332,12 +390,11 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
     this._doStreamOpen = function() {
         var me = this;
         var pushEndPoint;
-        //Hardcoded to Long Poll
-        //this.streamingSupport = false;
-        if (this.streamingSupport == null || this.streamingSupport === true)
-        pushEndPoint = this.streamUrl;
-        else
-        pushEndPoint = this.longPollUrl;
+        if (this.streamingSupport == null || this.streamingSupport === true) {
+            pushEndPoint = this.streamUrl;
+        } else {
+            pushEndPoint = this.longPollUrl;
+        }
         pushEndPoint += "&sid=" + this.sid;
         BCC.Log.info("Streaming to " + pushEndPoint, "_doStreamOpen");
         this.soFar = 0;
@@ -345,10 +402,11 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
         if (this.xhr == null) {
             this.xhr = new BCC.Ajax();
             this.xhr.onload = function() {
-                if (me.streamingSupport)
-                me._handleOnProgressData(me.xhr);
-                else
-                me._handleOnLoadData(me.xhr);
+                if (me.streamingSupport) {
+                    me._handleOnProgressData(me.xhr);
+                } else {
+                    me._handleOnLoadData(me.xhr);
+                }
                 BCC.Log.debug("Reconnecting to Push Stream", "BCC.Connection._doStreamOpen");
                 me._doStreamOpen();
             };
@@ -375,8 +433,9 @@ BCC.Connection = function(sid, wsUrl, streamUrl, longPollUrl, restUrl, hbCycle) 
                 /*BCC.Log.error("Stream Error : Reconnecting to Push Stream","BCC.Connection._doStreamOpen");
                 setTimeout (function(){me._doStreamOpen();}, 2000); //Reconnects after 2 seconds : Failure
                  */
-                if (me.onerror != null)
-                setTimeout(me.onerror, 0);
+                if (me.onerror != null) {
+                    setTimeout(me.onerror, 0);
+                }
             };
         }
         this.xhr.open("POST", pushEndPoint, true);
