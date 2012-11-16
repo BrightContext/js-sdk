@@ -11,520 +11,468 @@ BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
 /**
  * @class The BCC Connection object that encapsulates Web Sockets, Flash Sockets, Web Streaming and Long Polling
  * @constructor
- * @param {object} session  BCC.Session instance
- * @param {int} hbCycle  Time Duration of the heart beat cycle in Secs
+ * @param {string} apiKey the API key that will be used to create a session
+ * @param {int} heartbeat_cycle  Time Duration of the heart beat cycle in Secs
  * @private
  */
-BCC.Connection = function(session, hbCycle) {
-    this.sid = session.getSessId();
-    
-    this.wsUrl = session.getSocketUrl();
-    this.wsFallbackUrl = session.getSocketFallbackUrl();
-    this.streamUrl = session.getStreamUrl();
-    this.longPollUrl = session.getLongPollUrl();
-    this.restUrl = session.getRestUrl();
+BCC.Connection = function(apiKey, heartbeat_cycle) {
+	var me = this;
 
-    this.hbCycle = hbCycle * 1000;
+	this.endpoint = null;
+	this.heartbeat_cycle = heartbeat_cycle * 1000;
+	this.heartbeat_interval_id = null;
 
-    this.mode = null;
-    this.socket = null;
-    this.xhr = null;
-    this.socketReady = false;
-    this.needsOpening = false;
-    this.closeInitiated = false;
+	/**
+	 * Called by the constructor to initialize the object 
+	 * @private
+	 */
+	this._init = function() {
+	};
 
-    this.streamingSupport = null;
-    this.soFar = 0;
-    this.tokenizer = null;
-    this.hbTimerHandler = null;
-    this.ready = false;
+	this.getMetrics = function () {
+		if (!this._metrics) {
+			this._metrics = new BCC.Util.Metrics();
+		}
+		return this._metrics;
+	};
 
-    /**
-     * Called by the constructor to initialize the object 
-     * @private
-     */
-    this._init = function() {
-        this._loadSocket();
-    };
+	this.resetAttempts = function () {
+		this.getMetrics().set('socket_attempts' ,0);
+		this.getMetrics().set('flash_attempts', 0);
+		this.getMetrics().set('rest_attempts', 0);
+	};
 
-    /**
-     * Opens the socket/streaming connection
-     */
-    this.open = function() {
-        if (this._socketSupport()) {
-            if (this.socketReady) {
-                this._doSocketOpen();
-            } else {
-                this.needsOpening = true;
-            }
-        } else {
-            this.openStream();
-        }
-    };
+	/**
+	 * This method returns the session JSON
+	 * @returns {JSON} Session
+	 * @private
+	 */
+	this.getSession = function() {
+		return this.session;
+	};
 
-    /**
-     * Opens a streaming connection, bypassing the socket
-     * @private
-     */
-    this.openStream = function () {
-        this._createTokenizer();
-        this._doStreamOpen();
-        this.ready = true;
-        BCC.Log.info("Connection Opened.", "BCC.Connection.open");
-        if (this.onopen != null) {
-            this.onopen();
-        }
-    };
+	/**
+	 * Opens the socket/streaming connection
+	 */
+	this.open = function (completion) {
+		me.getMetrics().inc('open');
 
-    /**
-     * Closes the socket/streaming connection
-     */
-    this.close = function() {
-        BCC.Log.info("Attempting to close connection", "BCC.Connection.close");
+		if (!me.session || !me.endpoint) {
+			var session_create_attempts = me.getMetrics().inc('session_create_attempts');
+			if (session_create_attempts > BCC.MAX_SESSION_ATTEMPTS) {
+				completion('number of session creates exceeded maximum limit: ' + session_create_attempts);
+			} else {
+				var s = new BCC.Session(apiKey);
+				s.create(function (session_create_error, established_session) {
+					if (session_create_error) {
+						BCC.Log.error(session_create_error, 'BCC.Connection.open');
+						me.open(completion);	// recurse to find a new session
+					} else {
+						me.session = established_session;
+						me.resetAttempts();
 
-        this._stopHeartbeat();
+						me._connectToNextAvailableEndpoint(0, function (endpoint_connect_error, endpoint) {
+							if (endpoint_connect_error) {
+								completion(endpoint_connect_error);
+							} else {
+								me.endpoint = endpoint;
+								me._startHeartbeats();
 
-        if (!!this.socket) {
-            this.closeInitiated = true;
-            this.socket.close();
-        } else {
-            this._closeStream();
-            BCC.Log.info("Connection closed.", "BCC.Connection.close");
-            if (this.onclose != null) {
-                this.onclose();
-            }
-        }
-    };
+								completion(null, me);
+							}
+						});
+					}
+				});
+			}
+		} else {
+			completion(null, me);
+		}
+	};
 
-    /**
-     * Sends the command over the socket connection or makes a REST call
-     * @param {BCC.Command} command
-     */
-    this.send = function(command) {
-        var k = BCC.EventDispatcher.getObjectKey(command);
-        BCC.EventDispatcher.register(k, command);
+	/**
+	 * current state of the connection
+	 * @returns true if the endpoint is closed or non-existant, false otherwise
+	 * @private
+	 */
+	this.isClosed = function () {
+		var closed = ((!me.endpoint) || (me.endpoint.isClosed()));
+		return closed;
+	};
 
-        command.addParam({
-            sid: escape(this.sid)
-        });
-        command.addParam({
-            eventKey: "" + k
-        });
-        
-        if (this._socketSupport()) {
-            var msg = command.getCommandAsMessage();
-            BCC.Log.info("Message sent over the socket : " + msg, "BCC.Connection.send");
-            this.socket.send(msg);
-        } else {
-            // turn command into REST call
-            var me = this;
-            var xhr = new BCC.Ajax();
-            xhr.onload = function() {
-                var o = JSON.parse(xhr.getResponseText());
-                if (typeof(o) == "undefined") {
-                    BCC.Log.error("Unable to evaluate object from payload", "BCC.Connection.onmessage");
-                } else {
-                    var e = me._createEventFromResponse(o);
-                    me.onmessage(e);
-                }
-            };
-            var a = command.getCommandAction();
-            var p = command.getCommandAsPath();
-            var u = BCC.Util.getBccUrl(this.restUrl, p);
-            xhr.open(a, u, true);
-            xhr.send();
-        }
-    };
+	/** current state of the connection
+	 * @returns true if the session and endpoint are assigned and the endpoint is actively open
+	 * @private
+	 */
+	this.isOpen = function () {
+		var open = ((!!me.session) && (!!me.endpoint) && (me.endpoint.isOpen()));
+		return open;
+	};
 
-    /**
-     * Creates a Stream Tokenizer to consume the Web Streaming Feed
-     * @private
-     */
-    this._createTokenizer = function() {
-        this.tokenizer = new BCC.StreamTokenizer();
-        var me = this;
-        this.tokenizer.setCallback(
-        function(data) {
-            var e = me._createEventFromResponse(data);
-            me.onmessage(e);
-        });
-    };
+	/**
+	 * @returns true if the current endpoint uses the preamble functionality to pre-emptively send commands when it was created
+	 */
+	this.usesPreamble = function () {
+		var r = (me.endpoint && (me.endpoint.getName() == 'stream'));
+		return r;
+	};
 
-    /**
-     * Checks if Socket Support is available
-     * @returns {boolean}
-     * @private
-     */
-    this._socketSupport = function() {
-        if (BCC.FORCE_PUSH_STREAM) {
-            return false;
-        }
+	/**
+	 * Closes the socket/streaming connection
+	 */
+	this.close = function(completion) {
+		me.getMetrics().inc('close');
 
-        if (this.mode == BCC.WEBSOCKET || this.mode == BCC.FLASHSOCKET) {
-            return true;
-        } else {
-            return false;
-        }
-    };
+		if (me.endpoint) {
+			if (!me.endpoint.isClosed()) {
+				me.getMetrics().inc('disconnect');
+				me._stopHeartbeats();
+				
+				me.endpoint.disconnect(function (disconnect_error) {
+					if (BCC.Util.isFn(completion)) {
+						completion(disconnect_error, me);
+					}
 
-    /**
-     * Checks if Web Socket Support is available
-     * @private
-     * @returns {boolean}
-     */
-    this._isWebSocket = function() {
-        if (BCC.FORCE_PUSH_STREAM) {
-            return false;
-        }
+					if (disconnect_error) {
+						me._invoke(me.onerror, disconnect_error);
+					} else {
+						me._invoke(me.onclose, null);
+					}
+				});
+			} else {
+				if (BCC.Util.isFn(completion)) {
+					completion(null, me);	// endpoint already closed
+				}
+			}
+		} else {
+			if (BCC.Util.isFn(completion)) {
+				completion(null, me);	// no endpoint
+			}
+		}
+	};
 
-        //Hardcoded
-        //return false;
-        if (this.mode != BCC.FLASHSOCKET && (window.WebSocket || window.MozWebSocket)) {
-            return true;
-        } else {
-            return false;
-        }
-    };
+	/**
+	 * Sends the command over the socket connection or makes a REST call
+	 * @param {BCC.Command} command
+	 */
+	this.send = function(command) {
+		if (me.endpoint) {
+			if (!me.endpoint.isClosed()) {
+				me.endpoint.write(command);
+			} else {
+				me._stopHeartbeats();
+				me._invoke(me.onerror, 'endpoint is closed');
+			}
+		} else {
+			me._stopHeartbeats();
+			me._invoke(me.onerror, 'no endpoint');
+		}
+	};
 
-    this._hasFlash = function () {
-        return (swfobject.getFlashPlayerVersion().major >= 10);
-    };
+	/**
+	 * Sends the heartbeat over the socket
+	 * @private
+	 */
+	this._startHeartbeats = function() {
+		if (me.heartbeat_interval_id) {
+			BCC.Log.debug('could not start heartbeats, heartbeat_interval_id already scheduled', 'BCC.Connection._startHeartbeats');
+		} else {
+			BCC.Log.debug('starting heartbeats cycle at ' + me.heartbeat_cycle, 'BCC.Connection._startHeartbeats');
+			me.heartbeat_interval_id = setInterval(me._sendHeartbeat, me.heartbeat_cycle);
+		}
+	};
 
-    /**
-     * Checks if Flash Socket Support is available
-     * @private
-     * @returns {boolean}
-     */
-    this._isFlashSocket = function() {
-        if (BCC.FORCE_PUSH_STREAM) {
-            return false;
-        }
+	this._sendHeartbeat = function() {
+		if (me.endpoint) {
+			if (!me.endpoint.isClosed()) {
+				me.endpoint.heartbeat();
+			} else {
+				me._stopHeartbeats();
+				me._invoke(me.onerror, 'endpoint is closed');
+			}
+		} else {
+			me._stopHeartbeats();
+			me._invoke(me.onerror, 'no endpoint');
+		}
+	};
 
-        //Hardcoded
-        //return false;
-        if (this.mode == BCC.FLASHSOCKET) {
-            return true;
-        } else if (this.mode == null && this._hasFlash()) {
-            return true;
-        } else {
-            return false;
-        }
-    };
+	/**
+	 * Stops the heartbeat
+	 * @private
+	 */
+	this._stopHeartbeats = function() {
+		if (me.heartbeat_interval_id) {
+			BCC.Log.debug('stopping heartbeats', 'BCC.Connection._stopHeartbeats');
+			clearInterval(me.heartbeat_interval_id);
+			me.heartbeat_interval_id = null;
+		} else {
+			BCC.Log.debug('could not stop heartbeats, no heartbeat_interval_id', 'BCC.Connection._stopHeartbeats');
+		}
+	};
 
-    this._fallbackToWebStreaming = function () {
-        // no socket support at all
-        BCC.Log.debug("Socket support not available", "BCC.Connection.constructor");
-        BCC.Log.debug("Falling back to Web Streaming", "BCC.Connection.constructor");
-        this.mode = BCC.STREAMORPOLL;
-        // BCC.Ajax will throw an error if it turns out this isn't even supported
-        this.socket = null;
-        this.openStream();
-    };
+	/** 
+	 * Invokes an event handler with a parameter
+	 * @private
+	 */
+	this._invoke = function (fn, param) {
+		if (BCC.Util.isFn(fn)) {
+			fn(param);
+		}
+	};
 
-    /**
-     * Checks for the socket and web streaming support and loads the libraries (only for Flash Sockets)
-     * @private
-     */
-    this._loadSocket = function() {
-        if (this._isWebSocket()) {
-            BCC.Log.debug("WebSocket support available", "BCC.Connection.constructor");
-            this.mode = BCC.WEBSOCKET;
-            this.socketReady = true;
-        } else if (this._isFlashSocket()) {
-            BCC.Log.debug("FlashSocket support available", "BCC.Connection.constructor");
-            this.mode = BCC.FLASHSOCKET;
-            if (!BCC.Connection.FlashSocketLoaded) {
-                this.socket = {};
-                // set to non-null while it loads
-                this._loadFlashSocket();
-            } else {
-                this.socketReady = true;
-            }
-        } else {
-            this._fallbackToWebStreaming();
-        }
-    };
+	this._connectToNextAvailableEndpoint = function (delay, completion) {
+		var f = function () {
+			var socket_attempts, flash_attempts, rest_attempts,
+					available_endpoints, endpoint_url, connect_ep;
 
-    /**
-     * Injects the FLXHR libraries dynamically
-     * @private
-     */
-    this._loadFlashSocket = function() {
-        var flashscript = document.createElement('SCRIPT');
-        var headNode = document.getElementsByTagName('HEAD');
-        var me = this;
+			available_endpoints = me.session.getEndpoints();
 
-        flashscript.type = 'text/javascript';
-        flashscript.src = BCC.FLASH_SOCKET_SWF_PATH;
-        flashscript.async = true;
+			connect_ep = function (sid, u, ep) {
+				ep.setUrl(u);
+				ep.setSessionId(sid);
 
-        flashscript.onreadystatechange = function() {
-            if (this.readyState == 'loaded' || this.readyState == 'complete') {
-                me.socketReady = true;
-                BCC.Connection.FlashSocketLoaded = true;
-                if (me.needsOpening) {
-                    me._doSocketOpen();
-                }
-            }
-        };
-        if (flashscript.readyState == null) {
-            flashscript.onload = function() {
-                me.socketReady = true;
-                BCC.Connection.FlashSocketLoaded = true;
-                if (me.needsOpening) {
-                    me._doSocketOpen();
-                }
-            };
-            flashscript.onerror = function() {
-                BCC.Log.error("Fatal error. Cannot inject dependancy lib (flashsocket)", "BCC.Connection._loadFlashSocket");
-            };
-        }
+				ep.onclose = function (close_error) {
+					BCC.Log.debug('endpoint unexpectedly closed ' + close_error, ep.getName());
 
-        if (headNode[0] != null) {
-            headNode[0].appendChild(flashscript);
-        }
-    };
+					if (me.endpoint) {
+						me._invoke(me.onerror, close_error);
+					}
+				};
 
-    /**
-     * Stops the heartbeat
-     * @private
-     */
-    this._stopHeartbeat = function() {
-        if (this.hbTimerHandler != null) {
-            clearTimeout(this.hbTimerHandler);
-        }
-    };
+				ep.connect(function (endpoint_connect_error, opened_endpoint) {
+					if (endpoint_connect_error) {
+						BCC.Log.error(endpoint_connect_error, 'BCC.Connection._connectToNextAvailableEndpoint');
+						me._connectToNextAvailableEndpoint(delay, completion);
+					} else {
+						completion(null, opened_endpoint);
+					}
+				});
+			};
 
-    /**
-     * Sends the heartbeat over the socket
-     * @private
-     */
-    this._sendHeartbeat = function() {
-        var me = this;
-        if (this.socket != null) {
-            this.socket.send(BCC.HEART_BEAT_STRING);
-            BCC.Log.info("Heartbeat Sent", "BCC.Connection.sendHeartbeat");
-            this.hbTimerHandler = setTimeout(function() {
-                me._sendHeartbeat();
-            },
-            this.hbCycle);
-        }
-    };
+			socket_attempts = me.getMetrics().get('socket_attempts');
+			if (socket_attempts < available_endpoints.socket.length) {
+				me.getMetrics().inc('socket_attempts');
+				endpoint_url = available_endpoints.socket[socket_attempts];
 
-    /**
-     * Opens the socket and registers the various event handlers
-     * @private
-     */
-    this._doSocketOpen = function(using_alternative_port) {
-        var WebSocket = window.WebSocket || window.MozWebSocket;
-        BCC.Log.info("Socket connect initiated...", "BCC.Connection._doSocketOpen");
+				BCC.Env.checkWebSocket(function (websocket_check_error) {
+					if (websocket_check_error) {
+						me._connectToNextAvailableEndpoint(delay, completion);
+					} else {
+						connect_ep(
+							me.session.getSessionId(),
+							me.session.getSocketUrl(endpoint_url),
+							new BCC.WebSocketEndpoint()
+						);
+					}
+				});
 
-        var socketUrl = (using_alternative_port) ? this.wsFallbackUrl : this.wsUrl;
-        this.socket = new WebSocket(socketUrl + "?sid=" + this.sid);
+			} else {
 
-        var me = this;
+				flash_attempts = me.getMetrics().get('flash_attempts');
+				if (flash_attempts < available_endpoints.flash.length) {
+					me.getMetrics().inc('flash_attempts');
+					endpoint_url = available_endpoints.flash[flash_attempts];
 
-        var tryAlternateSocket = function () {
-            me._stopHeartbeat();
-            me._doSocketOpen(true);
-        };
+					BCC.Env.checkFlashSocket(function (flashsocket_check_error) {
+						if (flashsocket_check_error) {
+							me._connectToNextAvailableEndpoint(delay, completion);
+						} else {
+							connect_ep(
+								me.session.getSessionId(),
+								me.session.getSocketUrl(endpoint_url),
+								new BCC.FlashSocketEndpoint()
+							);
+						}
+					});
+				} else {
 
-        var fallback = function(event) {
-            me._stopHeartbeat();
-            try {
-                me._fallbackToWebStreaming();
-            } catch (ex) {
-                BCC.Log.error(ex);
-            }
-        };
+					rest_attempts = me.getMetrics().get('rest_attempts');
+					if (rest_attempts < available_endpoints.rest.length) {
+						me.getMetrics().inc('rest_attempts');
+						endpoint_url = available_endpoints.rest[rest_attempts];
+						
+						BCC.Env.checkStreaming(function (streaming_check_error) {
+							if (streaming_check_error) {
+								completion('no endpoint types supported');
+							} else {
+								var pending_commands = [];
+								if (BCC.Util.isFn(me.onpreamble)) {
+									me.onpreamble(pending_commands);
+								}
 
-        this.socket.onopen = function(event) {
-            BCC.Log.info("Connection opened.", "BCC.Connection.socket.onopen");
-            me.ready = true;
-            me._sendHeartbeat();
-            if (me.onopen != null) {
-                me.onopen();
-            }
-        };
-        this.socket.onclose = function(event) {
-            if (me.closeInitiated) {
-                BCC.Log.info("Connection closed.", "BCC.Connection.socket.onclose");
-                me.closeInitiated = false;
-                if (me.onclose != null) {
-                    me.onclose();
-                }
-            } else {
-                BCC.Log.info("Connection Error.", "BCC.Connection.socket.onclose");
-                if (!using_alternative_port) {
-                    tryAlternateSocket();
-                } else {
-                    fallback();
-                }
-            }
-        };
-        this.socket.onmessage = function(event) {
-            if (me.onmessage != null) {
-                var o = event.data;
-                if ("undefined" == typeof(o)) {
-                    BCC.Log.error("Unable to evaluate object from payload", "BCC.Connection.socket.onmessage");
-                } else {
-                    var e = me._createEventFromResponse(o);
-                    me.onmessage(e);
-                }
-            }
-        };
-        this.socket.onerror = function(event) {
-            BCC.Log.info("Connection Error.", "BCC.Connection.socket.onerror");
-            if (!using_alternative_port) {
-                tryAlternateSocket();
-            } else {
-                fallback();
-            }
-        };
-    };
+								connect_ep(
+									me.session.getSessionId(),
+									me.session.getStreamUrl(endpoint_url),
+									new BCC.RestStreamEndpoint(pending_commands)
+								);
+							}
+						});
 
-    /**
-     * Opens the Web Streaming/Long Poll and registers the various event handlers
-     * @private
-     */
-    this._doStreamOpen = function() {
-        var me = this;
-        var pushEndPoint;
-        if (this.streamingSupport == null || this.streamingSupport === true) {
-            pushEndPoint = this.streamUrl;
-        } else {
-            pushEndPoint = this.longPollUrl;
-        }
-        pushEndPoint += "&sid=" + this.sid;
-        BCC.Log.info("Streaming to " + pushEndPoint, "_doStreamOpen");
-        this.soFar = 0;
+					} else {
+						completion('all endpoint connection attempts exhausted');
+					}
+				}
+			}
+		};
 
-        if (this.xhr == null) {
-            this.xhr = new BCC.Ajax();
-            this.xhr.onload = function() {
-                if (me.streamingSupport) {
-                    me._handleOnProgressData(me.xhr);
-                } else {
-                    me._handleOnLoadData(me.xhr);
-                }
-                BCC.Log.debug("Reconnecting to Push Stream", "BCC.Connection._doStreamOpen");
-                me._doStreamOpen();
-            };
-            if (this.streamingSupport == null || this.streamingSupport === true) {
-                this.xhr.onprogress = function() {
-                    if (me.streamingSupport == null) {
-                        if (me.xhr.getResponseText() == null) {
-                            BCC.Log.debug("Web Streaming not supported", "BCC.Connection._doStreamOpen");
-                            BCC.Log.debug("Aborting and restarting as Long Poll", "BCC.Connection._doStreamOpen");
-                            me.streamingSupport = false;
-                            me._closeStream();
-                            me._doStreamOpen();
-                        } else {
-                            BCC.Log.debug("Web Streaming supported", "BCC.Connection._doStreamOpen");
-                            me._handleOnProgressData(me.xhr);
-                            me.streamingSupport = true;
-                        }
-                    } else {
-                        me._handleOnProgressData(me.xhr);
-                    }
-                };
-            }
-            this.xhr.onerror = function() {
-                /*BCC.Log.error("Stream Error : Reconnecting to Push Stream","BCC.Connection._doStreamOpen");
-                setTimeout (function(){me._doStreamOpen();}, 2000); //Reconnects after 2 seconds : Failure
-                 */
-                if (me.onerror != null) {
-                    setTimeout(me.onerror, 0);
-                }
-            };
-        }
-        this.xhr.open("POST", pushEndPoint, true);
-        this.xhr.send();
-    };
+		setTimeout(f, delay);
+	};
 
-    /**
-     * Handles the data inconsistency in readystate 3
-     * @private
-     */
-    this._handleOnProgressData = function(xhr) {
-        if ( !! !xhr) {
-            BCC.Log.error("Cannot process xhr response data for null xhr", "BCC.Connection._handleOnProgressData");
-            return;
-        }
+	this._reconnect = function (completion) {
+		me.getMetrics().inc('reconnect');
 
-        var responseText = xhr.getResponseText();
-        this.tokenizer.appendData(responseText.substr(this.SoFar));
-        this.SoFar = responseText.length;
-    };
+		if ((!!me.endpoint) && (me.endpoint.isClosed())) {
+			me.endpoint.connect(function (reconnect_error) {
+				if (reconnect_error) {
+					completion(reconnect_error, me);
+				} else {
+					me._startHeartbeats();
+					completion(null, me);
+				}
+			});
+		} else {
+			completion(null, me);	// nothing to do
+		}
+	};
 
-    /**
-     * Handles the data in readystate 4
-     * @private
-     */
-    this._handleOnLoadData = function(xhr) {
-        var responseText = xhr.getResponseText();
-        this.tokenizer.resetBuffer();
-        this.tokenizer.appendData(responseText);
-    };
+	this._fallback = function (completion) {
+		var fallback_delay = 5000,
+				conn_metrics,
+				ep_metrics,
+				reconnect_attempts,
+				reconnect_timeout,
+				heartbeat_in,
+				heartbeat_out,
+				ep_was_stable,
+				ep_reconnect_attempts_exceeded,
+				socket_attempts,
+				flash_attempts,
+				rest_attempts,
+				available_endpoints,
+				exhausted_all_endpoints
+		;
 
-    /**
-     * Closes the Web Streaming/Long Poll loop
-     * @private
-     */
-    this._closeStream = function() {
-        if (this.xhr != null) {
-            this.xhr.abort();
-            this.xhr = null;
-        }
-    };
+		if (me.is_retrying_same_endpoint || me.is_finding_next_available_endpoint) {
+			return;	// avoid double fallback event chains
+		}
 
-    /**
-     * Creates an event (BCC.Event) from the server response
-     * @return {BCC.Event}
-     * @private
-     */
-    this._createEventFromResponse = function(json) {
-        BCC.Log.info(JSON.stringify(json), "BCC.Connection._createEventFromResponse");
+		me.getMetrics().inc('fallback');
 
-        var evt = null;
+		if (!me.endpoint || !me.session) {
+			me.session = null;
+			me.endpoint = null;
 
-        if ("object" == typeof(json)) {
-            evt = json;
-        } else if ("string" == typeof(json)) {
-            try {
-                evt = JSON.parse(json);
-            } catch(ex) {
-                BCC.Log.error(ex);
-            }
-        }
+			me.open(function (new_session_error) {
+				if (new_session_error) {
+					var session_create_attempts = me.getMetrics().get('session_create_attempts');
+					if (session_create_attempts < BCC.MAX_SESSION_ATTEMPTS) {
+						me._fallback(completion);
+					} else {
+						completion(new_session_error);	// new sessions exceeded
+					}
+				} else {
+					me.resetAttempts();
 
-        return new BCC.Event(evt.eventType, evt.eventKey, evt.msg);
-    };
+					completion(null, me);
 
-    this._init();
+					me.reopenFeeds();
+				}
+			});
 
-    /**
-     * Single Listener event fired when the connection is opened
-     * @name BCC.Connection#onopen
-     * @event
-     */
+		} else {
+			if (!me.endpoint.isClosed()) {
+				// first close the endpoint and come back
+				me.close(function () {
+					me._fallback(completion);
+				});
+			} else {
+				conn_metrics = me.getMetrics();
+				conn_metrics.print('connection fallback metrics');
+				ep_metrics = me.endpoint.getMetrics();
+				ep_metrics.print('endpoint fallback metrics');
 
-    /** 
-     * Single Listener event fired when the connection is closed
-     * @name BCC.Connection#onclose
-     * @event
-     */
+				heartbeat_in = ep_metrics.get('heartbeat_in');
+				heartbeat_out = ep_metrics.get('heartbeat_out');
+				ep_was_stable = ((heartbeat_in >= 2) && (heartbeat_out >= 2));
 
-    /** 
-     * Single Listener event fired when the connection receives a message
-     * @name BCC.Connection#onmessage
-     * @event
-     */
+				reconnect_attempts = ep_metrics.inc('reconnect_attempts');
+				ep_reconnect_attempts_exceeded = (reconnect_attempts > BCC.MAX_ENDPOINT_ATTEMPTS);
 
-    /** 
-     * Single Listener event fired when there is a connection error 
-     * @name BCC.Connection#onerror
-     * @event
-     */
+				socket_attempts = conn_metrics.get('socket_attempts');
+				flash_attempts = conn_metrics.get('flash_attempts');
+				rest_attempts = conn_metrics.get('rest_attempts');
+				available_endpoints = me.session.getEndpoints();
+				exhausted_all_endpoints = ((socket_attempts > available_endpoints.socket.length) && (flash_attempts > available_endpoints.flash.length) && (rest_attempts > available_endpoints.rest.length));
+
+				if (ep_reconnect_attempts_exceeded || exhausted_all_endpoints) {
+          // jump to new session
+					me.session = null;
+					me.endpoint = null;
+					me._fallback(completion);
+				} else {
+					if (ep_was_stable) {
+						// retry the same endpoint
+						me.is_retrying_same_endpoint = true;
+						reconnect_timeout = reconnect_attempts * fallback_delay;
+
+						setTimeout(function () {
+							me.endpoint.connect(function (reconnect_error) {
+								me.is_retrying_same_endpoint = false;
+
+								if (reconnect_error) {
+									me._fallback(completion);
+								} else {
+									me._startHeartbeats();
+									completion(null, me);	// reconnected to same endpoint
+								}
+							});
+						}, reconnect_timeout);
+					} else {
+						// degrade connection to next available
+						me.is_finding_next_available_endpoint = true;
+
+						me.endpoint = null;
+						me._connectToNextAvailableEndpoint(fallback_delay, function (endpoint_connect_error, degradedEndpoint) {
+							me.is_finding_next_available_endpoint = false;
+
+							if (endpoint_connect_error) {
+								me._fallback(completion);
+							} else {
+								me.endpoint = degradedEndpoint;
+								me._startHeartbeats();
+
+								completion(null, me);	// reconnected to degraded endpoint
+							}
+						});
+					}
+				}
+			}
+		}
+
+	};
+
+	this.reopenFeeds = function () {
+		BCC.Log.debug('re-opening all feeds', "BCC.Connection.reopenFeeds");
+		BCC._checkContextExists();
+		BCC.ContextInstance._reRegisterAllFeeds();
+	};
+
+	this._init();
+
+	/**
+	 * Single Listener event fired when the connection is opened
+	 * @name BCC.Connection#onopen
+	 * @event
+	 */
+
+	/** 
+	 * Single Listener event fired when the connection is closed
+	 * @name BCC.Connection#onclose
+	 * @event
+	 */
+
+	/** 
+	 * Single Listener event fired when there is a connection error 
+	 * @name BCC.Connection#onerror
+	 * @event
+	 */
 };
-BCC.Connection.FlashSocketLoaded = false;

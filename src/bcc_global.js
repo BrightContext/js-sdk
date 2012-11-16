@@ -7,7 +7,6 @@
 //-----------------------------------------------------------------
 
 
-
 /**
  * 
  * The primary namespace used by the BrightContext JavaScript SDK.
@@ -15,27 +14,30 @@
  */
 BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
 
+BCC.VERSION = "$buildversionnumber$";
 BCC.BASE_URL = "$jsbaseURL$";
+BCC.BASE_URL_SECURE = "$jsbaseSecureURL$";
 BCC.STATIC_URL = "$jsbaseStaticURL$";
+BCC.STATIC_URL_SECURE = "$jsbaseStaticSecureURL$";
 
-BCC.FLASH_XHR_SWF_PATH = BCC.STATIC_URL + "/lib/flXHR.js";
-BCC.FLASH_SOCKET_SWF_PATH = BCC.STATIC_URL + "/lib/web_socket.js";
-BCC.SWF_OBJECT_LIB_PATH = BCC.STATIC_URL + "/lib/swfobject.js";
-BCC.JSON_LIB_PATH = BCC.STATIC_URL + "/lib/json2.js";
+BCC.JSON_LIB_PATH = "json2.min.js";															// json parse+stringify polyfill
+BCC.FLASH_XHR_SWF_PATH = "flXHR.js";														// cors polyfill
+BCC.SWF_OBJECT_LIB_PATH = "swfobject.js";												// cross-browser swfobject
+BCC.FLASH_SOCKET_SWF_PATH = "web_socket.min.js";								// flash socket polyfill
+BCC.FLASH_SOCKET_SWF_BINARY_PATH = "WebSocketMainInsecure.swf";	// flash binary for polyfill
+
+/** True if the window global is available, otherwise false */
+BCC.HAS_WINDOW = ('undefined' !== typeof(window));
 
 BCC.AJAX_INITIALIZING = 0;
 BCC.AJAX_READY = 1;
 BCC.AJAX_IN_PROGRESS = 2;
 BCC.AJAX_DONE = 3;
 
-BCC.WEBSOCKET = 1;
-BCC.FLASHSOCKET = 2;
-BCC.STREAMORPOLL = 3;
-BCC.FORCE_PUSH_STREAM = false;
-
-BCC.MAX_RECONNECTS = 3;
-
 BCC.SESSION_NAME = "bcc_so";
+
+BCC.MAX_SESSION_ATTEMPTS = 3;
+BCC.MAX_ENDPOINT_ATTEMPTS = 3;
 
 /**
  * @namespace BCC.LogLevel
@@ -77,6 +79,14 @@ BCC.getLogLevel = function() {
  */
 BCC.setLogLevel = function(level) {
 	BCC.CURRENT_LOG_LEVEL = level;
+
+	if (BCC.HAS_WINDOW) {
+		if (BCC.LogLevel.DEBUG == level) {
+			window.WEB_SOCKET_DEBUG = true;
+		} else {
+			window.WEB_SOCKET_DEBUG = false;
+		}
+	}
 };
 
 BCC.STATE_INITIAL = "INITIAL";
@@ -85,16 +95,7 @@ BCC.STATE_UPDATE = "UPDATE";
 
 BCC.HEART_BEAT_STRING = '{ "cmd": "heartbeat" }';
 
-BCC.API_COMMAND_ROOT = "/api";
-
-function htmlEscape(str) {
-	return String(str)
-	.replace(/&/g, '&amp;')
-	.replace(/"/g, '&quot;')
-	.replace(/'/g, '&#39;')
-	.replace(/</g, '&lt;')
-	.replace(/>/g, '&gt;');
-}
+BCC.API_COMMAND_ROOT = "/api/v2";
 
 /**
  * @private
@@ -110,8 +111,8 @@ BCC.Log = {};
 BCC.Log.info = function(msg, path) {
 	if (BCC.CURRENT_LOG_LEVEL >= BCC.LogLevel.INFO) {
 		// write to a console
-		if(!!window.console)
-			console.log("BCC Info : " + path + " : " + msg);
+		if ('undefined' !== typeof(console))
+			console.info("BCC Info : " + path + " : " + msg);
 	}
 };
 
@@ -123,7 +124,7 @@ BCC.Log.info = function(msg, path) {
 BCC.Log.debug = function(msg, path) {
 	if (BCC.CURRENT_LOG_LEVEL >= BCC.LogLevel.DEBUG) {
 		// write to a console
-		if(!!window.console)
+		if ('undefined' !== typeof(console))
 			console.log("BCC Debug : " + path + " : " + msg);
 	}
 };
@@ -136,62 +137,23 @@ BCC.Log.debug = function(msg, path) {
 BCC.Log.error = function(msg, path) {
 	if (BCC.CURRENT_LOG_LEVEL >= BCC.LogLevel.ERROR) {
 		// write to a console
-		if(!!window.console)
-			console.log("BCC Error : " + path + " : " + msg);
+		if ('undefined' !== typeof(console))
+			console.error("BCC Error : " + path + " : " + msg);
 	}
 };
 
-//Web Socket JS Globals
-WEB_SOCKET_SWF_LOCATION = BCC.STATIC_URL + "/lib/WebSocketMainInsecure.swf";
-WEB_SOCKET_DEBUG = false;
+BCC.Log.warn = BCC.Log.error;
+BCC.Log.log = BCC.Log.debug;
+
+if (BCC.HAS_WINDOW) {
+	window.WEB_SOCKET_LOGGER = BCC.Log;	// flash socket global logging override
+}
 
 /**
  * @private
  * @namespace
  */
 BCC.Util = {};
-
-/**
- * BCC Util method to store cookie
- * @param {string} name
- * @param {object} sessObj 
- */
-BCC.Util.setCookie = function(name, sessObj){
-	var sessStr = JSON.stringify(sessObj);
-	var expiresHours = 2;
-	var date = new Date();
-	date.setTime(date.getTime()+(expiresHours*60*60*1000));
-	var cookieExpiry = date.toGMTString();
-	var cookieString = name + "=" + escape(sessStr) +  "; expires=" + cookieExpiry + " ;path=/; ";
-	document.cookie = cookieString;
-};
-
-/**
- * BCC Util method to retrieve cookie
- * @param {string} cookieName
- * @returns {JSON} 
- */
-BCC.Util.getCookie = function(cookieName){
-	var i,x,y,ARRcookies=document.cookie.split(";");
-	for (i=0;i<ARRcookies.length;i++){
-		x=ARRcookies[i].substr(0,ARRcookies[i].indexOf("="));
-		y=ARRcookies[i].substr(ARRcookies[i].indexOf("=")+1);
-		x=x.replace(/^\s+|\s+$/g,"");
-		if (x==cookieName){
-			return ("undefined" !== typeof(y)) ? JSON.parse(unescape(y)) : null;
-		}
-	}
-	return null;
-};
-
-/**
- * For Future Use
- * @param {object} sessObj
- * @returns {string}
- */
-BCC.Util.urlSerialize = function(sessObj){
-
-};
 
 /**
  * Checks if the value is available in the array
@@ -216,7 +178,7 @@ BCC.Util.trim = function(str) {
 };
 
 /**
- * getBccRestUrl
+ * getBccUrl
  * @param {string} str
  * @returns {string}
  */
@@ -236,3 +198,255 @@ BCC.Util.getBccUrl = function(restUrl, urlPath) {
 		}
 	}
 };
+
+BCC.Util.isFn = function (f) {
+	return ('function' === typeof(f));
+};
+
+BCC.Util.injectScript = function (script_src, completion) {
+	var script_element,
+			head_element,
+			complete;
+
+	complete = function (error) {
+		if ('function' === typeof(completion)) {
+			completion(error);
+		}
+	};
+
+	script_element = document.createElement('SCRIPT');
+	script_element.type = 'text/javascript';
+	script_element.src = script_src;
+	script_element.async = true;
+
+	script_element.onreadystatechange = function() {
+		if (this.readyState == 'loaded' || this.readyState == 'complete') {
+			complete();
+		}
+	};
+
+	if (script_element.readyState == null) {
+    script_element.onload = function() {
+			complete();
+    };
+    script_element.onerror = function(error_object) {
+			complete(error_object);
+    };
+	}
+
+	head_element = document.getElementsByTagName('HEAD');
+	if (head_element[0] != null) {
+    head_element[0].appendChild(script_element);
+	}
+
+	return script_element;
+};
+
+/**
+ * makes a cross-browser compatible, cross-origin domain friendly http request
+ * @example
+ * var xhr = BCC.Util.makeRequest({
+ *   url: 'http://brightcontext.com/api/v2/...'
+ *   method: 'GET',	// default is POST
+ *   data: {}, // object to be sent as post data, or undefined
+ *   onprogress: function(data) { },
+ *   onload: function(response) { },
+ *   onerror: function(error) { }
+ * });
+ */
+BCC.Util.makeRequest = function (params) {
+	BCC.Log.debug(JSON.stringify(params), 'BCC.Util.makeRequest');
+
+	var method = params.method || "POST",
+			xhr = new BCC.Ajax();
+
+	if (BCC.Util.isFn(params.onprogress)) {
+	  xhr.onprogress = function () {
+			params.onprogress(xhr.getResponseText());
+	  };
+	}
+	
+	if (BCC.Util.isFn(params.onload)) {
+		xhr.onload = function () {
+			params.onload(xhr.getResponseText());
+		};
+	}
+	
+	if (BCC.Util.isFn(params.onerror)) {
+		xhr.onerror = function () {
+			params.onerror(xhr.getResponseText());
+		};
+	}
+	
+	xhr.open(method, params.url, true);
+
+	if ('POST' === method) {
+		if ('object' === typeof(params.headers)) {
+			xhr.setHeaders(params.headers);
+		} else {
+			xhr.setHeaders({
+				'Content-Type' : 'application/x-www-form-urlencoded'
+			});
+		}
+	}
+
+	var payload = params.data;
+	if ('object' === typeof(payload)) {
+		payload = JSON.stringify(payload);
+	}
+	xhr.send(payload);
+	
+	return xhr;
+};
+
+BCC.Util.Metrics = function () {
+	var _m = {};
+
+	this.inc = function (k, v) {
+		var value = (v) ? v : 1;
+
+		if ('undefined' === typeof(_m[k])) {
+			_m[k] = value;
+		} else {
+			_m[k] = _m[k] + value;
+		}
+
+		return _m[k];
+	};
+
+	this.dec = function (k) {
+		return this.inc(k, -1);
+	};
+
+	this.set = function (k, v) {
+		_m[k] = v;
+		return _m[k];
+	};
+
+	this.get = function (k) {
+		if ('undefined' == typeof(_m[k])) {
+			_m[k] = 0;
+		}
+		return _m[k];
+	};
+
+	this.print = function (prefix) {
+		BCC.Log.debug(JSON.stringify(_m), prefix);
+	};
+};
+
+/**
+ * Single place to hold browser checks for various capabilities
+ * @private
+ */
+BCC.Env = {};
+
+BCC.Env.IS_SECURE = ((BCC.HAS_WINDOW) && (!!window.location.href.match(/^https/)));
+BCC.Env.FORCE_WEBSOCKETS_OFF = false;
+BCC.Env.FORCE_FLASHSOCKETS_OFF = false;
+BCC.Env.FORCE_STREAMING_OFF = false;
+BCC.Env.FORCE_FLASHGATEWAY_OFF = false;
+
+BCC.Env.checkWebSocket = function (completion) {
+	if (BCC.Env.FORCE_WEBSOCKETS_OFF) {
+		completion('websockets forced off');
+	} else {
+
+		if (!BCC.WebSocket) {
+			if ('undefined' !== typeof(window)) {
+				BCC.WebSocket = (window.WebSocket || window.MozWebSocket);
+			}
+		}
+
+		var ok = (!!BCC.WebSocket);
+		completion(ok ? null : 'websocket not supported');
+	}
+};
+
+BCC.Env.checkFlashSocket = function (completion) {
+	if (BCC.Env.FORCE_FLASHSOCKETS_OFF) {
+		completion('flashsockets forced off');
+	} else {
+
+		if ('undefined' == typeof(swfobject)) {
+			BCC.Util.injectScript(BCC.Env.pathToLib(BCC.SWF_OBJECT_LIB_PATH), function (swf_load_error) {
+				if (swf_load_error) {
+					completion(swf_load_error);
+				} else {
+					var ok = (swfobject.getFlashPlayerVersion().major >= 10);
+					if (!ok) {
+						completion('flash version too old');
+					} else {
+						completion(null, swfobject);
+					}
+				}
+			});
+		} else {
+			completion(null, swfobject);
+		}
+
+	}
+};
+
+BCC.Env.checkStreaming = function (completion) {
+	if (BCC.Env.FORCE_STREAMING_OFF) {
+		completion('streaming forced off');
+	} else {
+		completion(null);
+	}
+};
+
+BCC.Env.checkFlashGateway = function (completion) {
+	if (BCC.Env.FORCE_FLASHGATEWAY_OFF) {
+		completion('flash gateway backup forced off');
+	} else {
+		completion(null);
+	}
+};
+
+BCC.Env.pathToLib = function (filename) {
+	var prefix, path;
+	prefix = (BCC.Env.IS_SECURE) ? BCC.STATIC_URL_SECURE : BCC.STATIC_URL;
+	path = prefix + '/lib/' + filename;
+	return path;
+};
+
+BCC.Env.baseActionPath = function (url) {
+	var m = url.match(/https?:\/\/.*?\//);
+	if (1 == m.length) {
+		return m[0];
+	} else {
+		return null;
+	}
+};
+
+
+BCC.Env.flipToNativeWebSocket = function () {
+	if (BCC.HAS_WINDOW) {
+		window.WEB_SOCKET_FORCE_FLASH = false;
+
+		if (window.WebSocket) {
+			if (window.WebSocket.__flash) {
+				window.FlashWebSocket = window.WebSocket;
+				window.WebSocket = BCC.WebSocket;
+			}
+		}
+	}
+};
+
+BCC.Env.flipToFlashWebSocket = function () {
+	if (BCC.HAS_WINDOW) {
+		window.WEB_SOCKET_FORCE_FLASH = true;
+		window.WEB_SOCKET_SUPPRESS_CROSS_DOMAIN_SWF_ERROR = true;
+		window.WEB_SOCKET_SWF_LOCATION = BCC.Env.pathToLib(BCC.FLASH_SOCKET_SWF_BINARY_PATH);
+
+		if (window.FlashWebSocket) {
+			window.WebSocket = window.FlashWebSocket;
+		}
+	}
+};
+
+// exports
+if (('undefined' !== typeof(module)) && ('undefined' !== typeof(module.exports))) {
+	module.exports = BCC;
+}

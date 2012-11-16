@@ -17,365 +17,385 @@ BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
  * @see BCC
  * @description Context instances should not be created manually, but instead initialized using BCC.init(apiKey)
  */
-BCC.Context = function() {
-    this.session = null;
-    this.conn = null;
-    this._stmtMap = null;
-    this.feedRegistry = null;
-    this.reconnectAttempts = 0;
-    this.activityFlag = true;
-    this.validateMessagesFlag = true;
-    
-    /**
-     * Called by the constructor to initialize the object 
-     * @private
-     */
-    this._init = function() {
-    
-    };
-    
-    /**
-     * Switch on validation of messages
-     * @private
-     */
-    this.setValidateMessagesOn = function() {
-        this.validateMessagesFlag = true;
-    };
+BCC.Context = function (apiKey) {
+	var me = this;
+	
+	this._apiKey = apiKey;
+	this.conn = null;
+	this.feedRegistry = null;
 
-    /**
-     * Switch off validation of messages
-     * @private
-     */
-    this.setValidateMessagesOff = function() {
-        this.validateMessagesFlag = false;
-    };
+	this.activityFlag = true;	// user active
+	this.validateMessagesFlag = true;	// message contract validation
+	
+	/**
+	 * Called by the constructor to initialize the object 
+	 * @private
+	 */
+	this._init = function() {
+		this.feedRegistry = new BCC.FeedRegistry();
+	};
+	
+	/**
+	 * Switch on validation of messages
+	 * @private
+	 */
+	this.setValidateMessagesOn = function() {
+		this.validateMessagesFlag = true;
+	};
 
-    /**
-     * @returns {boolean} true if Feed Message Validation logic will be executed, otherwise false
-     * @private
-     */
-    this.getValidateMessagesFlag = function() {
-        return this.validateMessagesFlag;
-    };
+	/**
+	 * Switch off validation of messages
+	 * @private
+	 */
+	this.setValidateMessagesOff = function() {
+		this.validateMessagesFlag = false;
+	};
 
-    /**
-     * Sets the user as active
-     * @private
-     */
-    this.setUserActive = function() {
-        this.activityFlag = true;
-    };
+	/**
+	 * @returns {boolean} true if Feed Message Validation logic will be executed, otherwise false
+	 * @private
+	 */
+	this.getValidateMessagesFlag = function() {
+		return this.validateMessagesFlag;
+	};
 
-    /**
-     * Sets the user as inactive
-     * @private
-     */
-    this.setUserInactive = function() {
-        this.activityFlag = false;
-    };
+	/**
+	 * Sets the user as active
+	 * @private
+	 */
+	this.setUserActive = function() {
+		this.activityFlag = true;
+	};
 
-    /**
-     * Gets the user active state
-     * @private
-     */
-    this.isUserActive = function() {
-        return this.activityFlag;
-    };
+	/**
+	 * Sets the user as inactive
+	 * @private
+	 */
+	this.setUserInactive = function() {
+		this.activityFlag = false;
+	};
 
-    /** Called after initialization once we have an api key
-     * @private
-     */
-    this._initSession = function(apiKey) {
-        this._apiKey = apiKey;
-        this.session = new BCC.Session(apiKey);
-        this._stmtMap = [];
-        this.feedRegistry = new BCC.FeedRegistry();
-        var me = this;
-        this.session.onsync = function() {
-            me.reconnectAttempts = 0;
-            me.conn = null;
-            me._createConnection(function(){me._reRegisterAllFeeds();});
-        };
-        this.session.open();
-    };
+	/**
+	 * Gets the user active state
+	 * @private
+	 */
+	this.isUserActive = function() {
+		return this.activityFlag;
+	};
 
-    /**
-     * This method returns the session JSON
-     * @returns {JSON} Session
-     * @private
-     */
-    this.getSession = function() {
-        return this.session;
-    };
 
-    /**
-     * This method sends the command over the connection if the connection is ready
-     * Otherwise the command send is cached in the dependency map
-     *     
-     * @param {BCC.Command} command
-     *
-     * @private
-     */
-    this.sendCommand = function(command) {
-        var me = this;
-        if (this.conn == null) {
-            this._runStatement(function() {
-                me._createConnection(function() {
-                    me.conn.send(command);
-                });
-            },
-            this.session);
-        } else {
-            this._runStatement(function() {
-                me.conn.send(command);
-            },
-            this.conn);
-        }
-    };
-    
-    this._reRegisterAllFeeds = function(){
-        var feedsArray = this.feedRegistry.getAllUniqueFeeds();
-        if(feedsArray != null){
-            for(var index=0; index < feedsArray.length; index++){
-                var feed = feedsArray[index];
-                feed.reopen(this.conn, this.feedRegistry);
-            }
-        }
-    };
+	/**
+	 * This method sends the command over the connection if the connection is ready
+	 * Otherwise the command send is cached in the dependency map
+	 *     
+	 * @param {BCC.Command} command
+	 *
+	 * @private
+	 */
+	this.sendCommand = function(command) {
+		me._getConnection(function (connection_open_error) {
+			if (connection_open_error) {
+				BCC.Log.error('error sending command: ' + connection_open_error + ' :: ' + JSON.stringify(command), 'BCC.Context.sendCommand');
+			} else {
+				me.conn.send(command);
+			}
+		});
+	};
+	
+	this._reRegisterAllFeeds = function(){
+		var feedsArray = this.feedRegistry.getAllUniqueFeeds();
+		if(feedsArray != null){
+			for(var index=0; index < feedsArray.length; index++){
+				var feed = feedsArray[index];
+				feed.reopen(this.conn, this.feedRegistry);
+			}
+		}
+	};
 
-    /**
-     * Opens a feed that was manually created using <code>var f = new Feed(...)</code>.
-     * There is no need to call this method if a feed was opened using <code>project.feed(...)</code>.
-     * @param {BCC.Feed} feed
-     */
-    this.openFeed = function(feed) {
-        var me = this;
-        var feedSettings = this.feedRegistry.getLoadedFeed(feed);
+	/**
+	 * Retrieves the current server time, useful for client timepoint synchronization.
+	 * @param {function} completion The function to execute once the time is retrieved.
+	 * Method signature: <code>function(server_time_object, error_object)</code>
+	 * @example
+	 * var ctx = BCC.init(my_api_key);
+	 * ctx.serverTime(function(t,err) {
+	 *   if (err) {
+	 *     console.error(err); // failed to get server time
+	 *   } else {
+	 *     console.log(t); // t is a Date instance with the server time
+	 *   }
+	 * });
+	 */
+	this.serverTime = function (completion) {
+		if ('function' !== typeof(completion)) {
+			return;
+		}
 
-        if (feedSettings == null) {
-            // no existing feed matching the key -- so we need to open it with the server.
-            if (this.conn == null) {
-                this._runStatement(function() {
-                    me._createConnection(function() {
-                        feed.open(me.conn, me.feedRegistry);
-                    });
-                },
-                this.session);
-            } else {
-                this._runStatement(function() {
-                    feed.open(me.conn, me.feedRegistry);
-                },
-                this.conn);
-            }
-        } else {
-            // feed matching the same feeKey already exists... so reload the new feed with existing loaded feedSettings
-            feed.reloadFeedSettings(feedSettings);
-            feed.conn = this.conn;
-            this.feedRegistry.registerFeed(feed);
-            var openEvent = new BCC.Event("onopen", BCC.EventDispatcher.getObjectKey(feed), feed);
-            BCC.EventDispatcher.dispatch(openEvent);
-            // trigger onOpen for all listeners
-        }
-    };
+		cmd = new BCC.Command("GET", "/server/time.json");
+		
+		cmd.onresponse = function(evt) {
+			completion(new Date(evt.stime));
+		};
+		
+		cmd.onerror = function(err) {
+			BCC.Log.error("Error getting server time: " + err, "BCC.Context.serverTime");
+			var errorEvent = new BCC.Event("onerror", BCC.EventDispatcher.getObjectKey(me), err);
+			BCC.EventDispatcher.dispatch(errorEvent);
 
-    /**
-     * Closes a feed that was manually created using <code>new Feed(...)</code> and opened using <code>openFeed</code>.
-     * Any feed opened using <code>project.feed(...)</code> can be closed simply by
-     * calling <code>close()</code> on that opened feed instance.
-     * @param {BCC.Feed} feed
-     * @see BCC.Feed#close
-     */
-    this.closeFeed = function(feed) {
-        if (this.feedRegistry.getFeedCount(feed) > 1) {
-            this._unregisterFeed(feed);
-            var closeEvent = new BCC.Event("onclose", BCC.EventDispatcher.getObjectKey(feed), null);
-            BCC.EventDispatcher.dispatch(closeEvent);
-            
-            BCC.EventDispatcher.unregister(feed.id, feed);
-            BCC.EventDispatcher.unregister(feed.feedSettings.feedKey, feed);
-        } else {
-            feed._close(this.conn);
-        }
-    };
+			completion(null, err);
+		};
+		
+		me.sendCommand(cmd);
+	};
 
-    /**
-     * Opens a Project instance containing Channels as configured using the management console.
-     * This will not open the underlying Channel feeds.  Use <code>project.feed(...)</code> to do that.
-     * @returns {BCC.Project} Project object instance that allows access to Channel and Feed data.
-     * @param {string} projectName name of the project defined in the management console
-     * @see BCC.Feed
-     * @see BCC.Project
-     */
-    this.project = function(projectName) {
-        return new BCC.Project(projectName);
-    };
+	/**
+	 * Asks the server to build a new UUID (aka GUID but this is not a Microsoft implementation).
+	 * These can be very useful as a user id or to group multiple related messages with each other.
+	 * @param {function} completion The function to execute once the time is retrieved.
+	 * Method signature: <code>function(uuid_string, error_object)</code>
+	 * @example
+	 * var ctx = BCC.init(my_api_key);
+	 * ctx.sharedUuid(function(uuid,err) {
+	 *   if (err) {
+	 *     console.error(err); // failed to get server time
+	 *   } else {
+	 *     console.log(uuid); // uuid is a new unique string created by the server
+	 *   }
+	 * });
+	 */
+	this.sharedUuid = function (completion) {
+		if ('function' !== typeof(completion)) {
+			return;
+		}
 
-    /**
-     * Unregisters a feed, and if nothing is left in the registry, closes the connection
-     * @private
-     */
-    this._unregisterFeed = function(closedFeed) {
-        if (this.feedRegistry.feedExists(closedFeed)) {
-            this.feedRegistry.unRegisterFeed(closedFeed);
-        }
-    };
+		cmd = new BCC.Command("GET", "/server/uuid.json");
+		
+		cmd.onresponse = function(evt) {
+			completion(evt.d);
+		};
+		
+		cmd.onerror = function(err) {
+			BCC.Log.error("Error getting shared uuid: " + err, "BCC.Context.sharedUuid");
+			var errorEvent = new BCC.Event("onerror", BCC.EventDispatcher.getObjectKey(me), err);
+			BCC.EventDispatcher.dispatch(errorEvent);
 
-    /**
-     * This method accepts a statement and a dependency object. 
-     * If the dependency object is ready the statement is executed immediately
-     * Otherwise the statement is queued and executed onready of the dependency object    
-     *   
-     * @private
-     * @param {function} stmt The function/statement that gets executed
-     * @param {object} waitsFor The dependency object that makes the function/statement wait
-     */
-    this._runStatement = function(stmt, waitsFor) {
-        if (waitsFor.ready) {
-            stmt();
-        } else {
-            var dep = this._getDependencyFromMap(waitsFor);
-            if (dep == null) {
-                this._stmtMap.push(new BCC.Dependency(stmt, waitsFor));
-            } else {
-                dep.addStatement(stmt);
-            }
+			completion(null, err);
+		};
+		
+		me.sendCommand(cmd);
+	};
 
-            if (waitsFor.onopen == null) {
-                var me = this;
-                waitsFor.onopen = function() {
-                    //Reset reconnectAttempts when connection is established
-                    //Check to distinguish BCC.Connection from BCC.Session
-                    if (!me._apiKey) {
-                        me.reconnectAttempts = 0;
-                    }
-                    me._dispatchStatements(this);
-                };
-            }
-        }
-    };
+	/**
+	 * Builds a new UUID without contacting the server using minimal calls to Math.random that is RFC4122v4 compliant.
+	 * These can be very useful as a user id or to group multiple related messages with each other.
+	 * @example
+	 * var ctx = BCC.init(my_api_key);
+	 * var uuid = ctx.uuid(); // uuid is a new unique string
+	 */
+	this.uuid = function (completion) {
+		// http://www.broofa.com/Tools/Math.uuid.js
+		
+		var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split(''),
+			uuid = new Array(36),
+			rnd=0,
+			r,
+			uuid_string;
 
-    /**
-     * This method dispatches the queued statements    
-     *   
-     * @private
-     * @param {object} waitsFor The dependency object that is ready  
-     */
-    this._dispatchStatements = function(waitsFor) {
-        var dep = this._getDependencyFromMap(waitsFor);
-        for (var index in dep.stmts) {
-            dep.stmts[index]();
-        }
-        dep.stmts.splice(0, dep.stmts.length);
-    };
+		for (var i = 0; i < 36; i++) {
+		  if (i==8 || i==13 ||  i==18 || i==23) {
+			uuid[i] = '-';
+		  } else if (i==14) {
+			uuid[i] = '4';
+		  } else {
+			if (rnd <= 0x02) rnd = 0x2000000 + (Math.random()*0x1000000)|0;
+			r = rnd & 0xf;
+			rnd = rnd >> 4;
+			uuid[i] = chars[(i == 19) ? (r & 0x3) | 0x8 : r];
+		  }
+		}
+		uuid_string = uuid.join('');
 
-    /**
-     * This method returns the dependency and its queued statements from the map
-     *   
-     * @private
-     * @param {object} waitsFor The dependency object  
-     */
-    this._getDependencyFromMap = function(waitsFor) {
-        if (waitsFor.id !== null) {
-            for (var index in this._stmtMap) {
-                if (this._stmtMap[index].depId == waitsFor.id)
-                return this._stmtMap[index];
-            }
-        }
-    };
+		if ('function' == typeof(completion)) {
+			completion(uuid_string);
+		}
+		return uuid_string;
+	};
 
-    /**
-     * This method creates a connection object and queues the statement for execution 
-     *   
-     * @private
-     * @param {function} stmt The function/statement that gets executed after the connection is made
-     */
-    this._createConnection = function(stmt) {
-        if (this.conn == null) {
-            this.conn = new BCC.Connection(this.session, 45);
-            this.conn.onmessage = function(event) {
-                //BCC.Log.info("Message received over connection : " + JSON.stringify(event),"BCC.Context.conn.onmessage");
-                BCC.EventDispatcher.dispatch(event);
-            };
+	/**
+	 * Opens a feed 
+	 * @param {BCC.Feed} feed BCC.Feed instance with metadata
+	 * @param {function} completion method fired method signature: <code>function(open_error, opened_feed)</code>
+	 * @private
+	 */
+	this.openFeed = function(feed, completion) {
+		var loaded_feed = me.feedRegistry.findFeedWithMetadata(feed);
 
-            var me = this;
-            this.conn.onerror = function(err) {
-                if ("function" == typeof(me.onerror)) {
-                    me.onerror(err);
-                }
+		if (loaded_feed) {
+			// feed already opened
+			feed.reloadFeedSettings(feed.settings);
+			completion(null, feed);
+		} else {
+			// when the feed needs a connection, fetch one lazily
+			feed.onneedsconnection = function (connection_needed_callback) {
+				me._getConnection(function (connection_open_error) {
+					if (connection_open_error) {
+						connection_needed_callback(connection_open_error);
+					} else {
+						connection_needed_callback(null, me.conn);
+					}
+				});
+			};
 
-                me._tryToReconnect();
-            };
-            this.conn.open();
-        }
+			// create the open command which will get a connection later lazily
+			var feed_open_cmd = feed.open(function (open_error) {
+				if (open_error) {
+					completion(open_error);
+				} else {
+					me.feedRegistry.registerFeed(feed);
+					completion(null, feed);
+				}
+			});
+			
+			// lazy initialize the preamble portion of the command list
+			if (!me._connection_preamble) {
+				me._connection_preamble = [];
+			}
 
-        if (stmt != null) {
-            this._runStatement(stmt, this.conn);
-        }
-    };
+			// save the pending feed for the command batches
+			me._connection_preamble.push(feed_open_cmd);
+		}
+	};
 
-    /** Reconnect after 5 secs
-     * @private
-     */
-    this._tryToReconnect = function() {
-        var me = this;
-        setTimeout(function() {
-            ++me.reconnectAttempts;
-            if (me.reconnectAttempts <= BCC.MAX_RECONNECTS) {
-                BCC.Log.debug("Connection Error : Reconnecting (" + me.reconnectAttempts + ")", "BCC.Context.conn.onerror");
-                me.conn.open();
-            } else {
-                BCC.Log.debug("Reconnects failed. Trying to resync the session with the server", "BCC.Context.conn.onerror");
-                me.session.syncWithServer();
-            }
-        },
-        5000);
-    };
+	/**
+	 * Closes a feed
+	 * @private
+	 */
+	this.closeFeed = function(feed) {
+		if (this.feedRegistry.getFeedCount(feed) > 1) {
+			this._unregisterFeed(feed);
+			var closeEvent = new BCC.Event("onclose", BCC.EventDispatcher.getObjectKey(feed), null);
+			BCC.EventDispatcher.dispatch(closeEvent);
+			
+			BCC.EventDispatcher.unregister(feed.id, feed);
+			BCC.EventDispatcher.unregister(feed.getSettings().feedKey, feed);
+		} else {
+			feed._close(this.conn);
+		}
+	};
 
-    this._init();
+	/**
+	 * Opens a Project instance containing Channels as configured using the management console.
+	 * This will not open the underlying Channel feeds.  Use <code>project.feed(...)</code> to do that.
+	 * @returns {BCC.Project} Project object instance that allows access to Channel and Feed data.
+	 * @param {string} projectName name of the project defined in the management console
+	 * @see BCC.Feed
+	 * @see BCC.Project
+	 */
+	this.project = function(projectName) {
+		return new BCC.Project(projectName);
+	};
+
+	/**
+	 * Unregisters a feed, and if nothing is left in the registry, closes the connection
+	 * @private
+	 */
+	this._unregisterFeed = function(closedFeed) {
+		if (this.feedRegistry.feedExists(closedFeed)) {
+			this.feedRegistry.unRegisterFeed(closedFeed);
+		}
+	};
+
+	this._getConnection = function (completion) {
+		if (me.conn) {
+			if (me.conn.endpoint) {
+				if (me.conn.endpoint.isClosed()) {
+					// have a connection and endpoint, but it's closed, open it back up
+					me.conn._reconnect(function (reconnect_error) {
+						if (reconnect_error) {
+							completion(reconnect_error);
+						} else {
+							completion(null, me.conn);
+						}
+					});
+				} else {
+					completion(null, me.conn);
+				}
+			} else {
+				// have a connection, but no valid endpoint yet, push this into the queue and wait
+				if (!me.completions_awaiting_endpoint) {
+					me.completions_awaiting_endpoint = [];
+				}
+				me.completions_awaiting_endpoint.push(completion);
+			}
+		} else {
+			// don't have a connection, make one
+			me._createConnection(function (connection_create_error) {
+				completion(connection_create_error);
+
+				if (me.completions_awaiting_endpoint) {
+					for (var i in me.completions_awaiting_endpoint) {
+					  var fn = me.completions_awaiting_endpoint[i];
+					  fn(connection_create_error);
+					}
+				}
+			});
+		}
+	};
+
+	/**
+	 * This method creates a connection object and queues the statement for execution
+	 * @private
+	 */
+	this._createConnection = function(completion) {
+		me.conn = new BCC.Connection(me._apiKey, 45);
+
+		me.conn.onerror = function(connection_error) {
+			BCC.Log.error("connection error: " + connection_error, 'BCC.Context._createConnection');
+			me.conn._fallback(function (fallback_error) {
+				if (fallback_error) {
+					BCC.Log.error("fallback error: " + fallback_error, 'BCC.Context._createConnection');
+					me.forceShutdown();
+				}
+			});
+		};
+
+		// preamble only fired on rest connections
+		me.conn.onpreamble = function (preamble) {
+			if (me._connection_preamble) {
+				// compact multiple feed opens into a single stream open
+				while (0 !== me._connection_preamble.length) {
+					var cmd = me._connection_preamble.shift();
+					preamble.push(cmd);
+				}
+			}
+		};
+
+		me.conn.open(function (connection_open_error) {
+			completion(connection_open_error);
+		});
+	};
+
+	this.forceShutdown = function () {
+		if (me.conn) {
+			me.conn.close();
+		}
+		
+		if (me.feedRegistry) {
+			var registeredFeeds = me.feedRegistry.getAllFeeds();
+
+			if (!!registeredFeeds && registeredFeeds.length > 0){
+				for (var index = 0; index < registeredFeeds.length; index++){
+					var feedObj = registeredFeeds[index];
+					var closeEvent = new BCC.Event("onclose", BCC.EventDispatcher.getObjectKey(feedObj), feedObj);
+					BCC.EventDispatcher.dispatch(closeEvent);
+				}
+			}
+		}
+	};
+
+	this._init();
 };
 
-/**
- * BCC.Dependency : The dependancy class that hold the statement queue for a dependency object
- * @constructor 
- * @param {function} stmt
- * @param {object} waitsFor BCC.Connection or BCC.Session 
- * @private
- */
-
-BCC.Dependency = function(stmt, waitsFor) {
-    this.stmts = null;
-    this.depId = null;
-
-    /**
-     * Called by the constructor to initialize the object 
-     * @private
-     */
-    this._init = function() {
-        this.stmts = [];
-        this.stmts.push(stmt);
-        this.depId = this._getObjectId(waitsFor);
-    };
-
-    /**
-     * Creates and assigns an id for the dependency object
-     * @param {object} waitsFor The dependency object
-     * @private
-     */
-    this._getObjectId = function(waitsFor) {
-        if (waitsFor.id == null) waitsFor.id = new Date().getTime() + Math.floor(Math.random() * 1000);
-        return waitsFor.id;
-    };
-
-    /**
-     * Adds a statement to the queue
-     * @param {function} stmt The statement that gets added to the queue
-     */
-    this.addStatement = function(stmt) {
-        this.stmts.push(stmt);
-    };
-
-    this._init();
-};
 
 /**
  * Initializes a new context session.  Currently there can be only one context session with one connection at a time on any given page.  Thus, only plan on calling init once per page load with the proper api key, as any second call to init will dispose of the old context.
@@ -383,24 +403,14 @@ BCC.Dependency = function(stmt, waitsFor) {
  * @returns {BCC.Context} Newly initialized context instance that can be used to open projects and feeds
  * @see BCC.Context
  */
-BCC.init = function(apiKey) {
-    BCC.Log.debug("Initializing context with api key " + apiKey);
-    if (!!BCC.ContextInstance) {
-        BCC.Log.debug("BCC.ContextInstance already available. Cleaning up the old instance");
-        if(!!BCC.ContextInstance.conn)
-             BCC.ContextInstance.conn.close();
-        var registeredFeeds = BCC.ContextInstance.feedRegistry.getAllFeeds();
-        if(!!registeredFeeds && registeredFeeds.length > 0){
-            for(var index = 0; index < registeredFeeds.length; index++){
-                var feedObj = registeredFeeds[index];
-                var closeEvent = new BCC.Event("onclose", BCC.EventDispatcher.getObjectKey(feedObj), feedObj);
-                BCC.EventDispatcher.dispatch(closeEvent);
-            }
-        }
-    }
-    BCC.ContextInstance = new BCC.Context();
-    BCC.ContextInstance._initSession(apiKey);
-    return BCC.ContextInstance;
+BCC.init = function (apiKey) {
+	BCC.Log.debug('Initializing context with api key ' + apiKey, 'BCC.init');
+	if (!!BCC.ContextInstance) {
+		BCC.Log.debug('forcing shutdown of previous context instance', 'BCC.init');
+		BCC.ContextInstance.forceShutdown();
+	}
+	BCC.ContextInstance = new BCC.Context(apiKey);
+	return BCC.ContextInstance;
 };
 
 /**
@@ -408,9 +418,9 @@ BCC.init = function(apiKey) {
  * @private
  */
 BCC._checkContextExists = function() {
-    if (!BCC.ContextInstance) {
-        throw "Context Not Initialized, use BCC.init";
-    }
+	if (!BCC.ContextInstance) {
+		throw "Context Not Initialized, use BCC.init";
+	}
 };
 
 /**
@@ -431,17 +441,17 @@ BCC._checkContextExists = function() {
  * @throws Throws an exception if the context has not been initialized with BCC.init()
  */
 BCC.userActive = function(isActive) {
-    BCC._checkContextExists();
-    
-    if ("undefined" !== typeof(isActive)) {
-        if (isActive) {
-            BCC.ContextInstance.setUserActive();
-        } else {
-            BCC.ContextInstance.setUserInactive();
-        }
-    }
+	BCC._checkContextExists();
+	
+	if ("undefined" !== typeof(isActive)) {
+		if (isActive) {
+			BCC.ContextInstance.setUserActive();
+		} else {
+			BCC.ContextInstance.setUserInactive();
+		}
+	}
 
-    return BCC.ContextInstance.isUserActive();
+	return BCC.ContextInstance.isUserActive();
 };
 
 /**
@@ -464,16 +474,17 @@ BCC.userActive = function(isActive) {
  * @throws Throws an exception if the context has not been initialized with BCC.init()
  */
 BCC.fieldMessageValidation = function(shouldValidate) {
-    BCC._checkContextExists();
-    
-    if ("undefined" !== typeof(shouldValidate)) {
-        if (shouldValidate) {
-            BCC.ContextInstance.setValidateMessagesOn();
-        } else {
-            BCC.ContextInstance.setValidateMessagesOff();
-        }
-    }
-    
-    return BCC.ContextInstance.getValidateMessagesFlag();
+	BCC._checkContextExists();
+	
+	if ("undefined" !== typeof(shouldValidate)) {
+		if (shouldValidate) {
+			BCC.ContextInstance.setValidateMessagesOn();
+		} else {
+			BCC.ContextInstance.setValidateMessagesOff();
+		}
+	}
+	
+	return BCC.ContextInstance.getValidateMessagesFlag();
 };
 
+BCC.ContextInstance = null;

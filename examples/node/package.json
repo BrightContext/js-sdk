@@ -1,0 +1,15 @@
+{
+  "name": "example-bcc-service",
+  "version": "0.0.1",
+  "description": "real-time big data",
+  "main": "main.js",
+  "author": "Steven Fusco",
+  "license": "MIT",
+  "dependencies": {
+    "ws" : ">=0.4.22",
+    "w3c-xmlhttprequest" : ">=1.0.0"
+  },
+  "engines": {
+    "node" : ">=0.6.x"
+  }
+}

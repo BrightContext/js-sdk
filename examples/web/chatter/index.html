@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		
+		<!--
+			markup and styles first
+			scripts are at the bottom
+		-->
+		
+		<meta charset="utf-8">
+		<title>Chatter</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="description" content="">
+		<meta name="author" content="">
+		
+		<link href="css/bootstrap.min.css" rel="stylesheet">
+		<link href="css/bootstrap-responsive.min.css" rel="stylesheet">
+		<link href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/themes/start/jquery-ui.css" type="text/css" rel="Stylesheet" />
+	  
+		<style type="text/css">
+			.chatlog { height: 20em; overflow: scroll; }
+			.chatusername { font-weight: bold; }
+			.loading .chatinput { display: none; }
+			.loading #newuserbutton { display: none; }
+			#loadingmessage { display: none; }
+			.loading #loadingmessage { display: block; }
+			#mymessage { width: 60%; }
+		</style>
+		
+		<!--[if lt IE 9]>
+			<script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+	</head>
+	<body class="loading">
+		
+		<div class="container-fluid">
+		
+			<div class="page-header row-fluid">
+				<h1>Chatter</h1>
+			</div>
+			
+			<div id="mainroom" class="chatroom row-fluid">
+				<div class="chatlog well span12">
+					<div class="chatmessage">
+						<span class="chatusername span2">user1</span>
+						<span class="chatmessagebody span8">hello</span>
+						<span class="chattimestamp span2">12:00 am</span>
+					</div>
+					<div class="chatmessage">
+						<span class="chatusername span2">user2</span>
+						<span class="chatmessagebody span8">world</span>
+						<span class="chattimestamp span2">12:00 am</span>
+					</div>
+				</div>
+				<div class="chatinput">
+					<form class="form-inline">
+						<input type="text" name="myusername" id="myusername" />
+						<input type="text" name="mymessage" id="mymessage" placeholder="message" />
+						<a id="sendbutton" href="javascript:void(0)" class="btn">Send</a>
+					</form>
+				</div>
+			</div>
+			
+			<div class="row-fluid">
+				<div id="loadingmessage" class="offset3"><strong>Loading...</strong></div>
+				<a id="newuserbutton"
+				 href="javascript:void(0)"
+				 onclick="window.open(window.location.href)"
+				 target="_new"
+				 class="btn"><i class="icon-plus-sign"></i> User</a>
+			</div>
+			
+			<footer>
+				<hr>
+				<p><a href="http://www.brightcontext.com">Powered by BrightContext</a></p>
+			</footer>
+		</div>
+		
+		<!-- realtime -->
+		<script type="text/javascript" src="http://static.brightcontext.com/js-sdk/bcc.min.js"></script>
+		
+		<!-- ui -->
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+		<script src="js/bootstrap.min.js" type="text/javascript"></script>
+		<script src="js/date.js" type="text/javascript" charset="utf-8"></script>
+		
+		<!-- main example -->
+		<script type="text/javascript">
+			//
+			// replace with your API Key from the settings panel
+			//
+			var apikey = '';
+
+			if ('' === apikey) {
+				alert("You can find or create your API Key using the management dashboard.\n\nhttps://mgr.brightcontext.com\n\nSee readme.txt for details.");
+				return;
+			}
+			
+			//
+			// the name of your project
+			//
+			var projectname = 'Example - Chatter';
+			
+			//
+			// the name of the Thru Channel inside that project
+			//
+			var channelname = 'mainlobby';
+			
+			//
+			// our chat room object, created once the feed is open
+			//
+			var room = null;
+			
+			function openFeeds() {
+				//
+				// initialize the platform and open the project
+				//
+				var p = BCC.init(apikey).project(projectname);
+				
+				//
+				// turn on debug logging
+				//
+				BCC.setLogLevel(BCC.LogLevel.DEBUG);
+				
+				//
+				// open the Thru Feed that will serve as our chat room
+				//
+				p.feed({
+					channel: channelname,
+					onopen: function(f) {
+						//
+						// called only once, when the feed is opened and ready for use
+						//
+						showInputForFeed(f);
+						
+						// TODO: f.history() to pull back the most recent messages
+					},
+					onmsgreceived: function(f, msg) {
+						//
+						// called every time a message is broadcasted
+						//
+						showMessage(msg);
+					},
+					onerror: function(err) {
+						//
+						// if we encounter any issues, this event is how we let you know about them
+						//
+						console.error(err);
+					}
+				});
+			}
+			
+			function showInputForFeed(f) {
+				//
+				// save a global handle to our chat room
+				//
+				room = f;
+				
+				//
+				// present the chat box now that our feed is opened
+				//
+				$('body').removeClass('loading');
+				
+				//
+				// capture the <enter> key
+				//
+				$('#mymessage').keypress(function(e) {
+					if (e.keyCode == 13) {
+						sendMessage();
+					}
+				});
+			}
+			
+			
+			function sendMessage() {
+				if (!room) return;
+				
+				//
+				// build a message using the user
+				//
+				var m = {
+					d : (new Date()).getTime(),	// date objects don't serialize to json, so we'll send the number instead
+					b : $('#mymessage').val(),	// the body of the message
+					u : $('#myusername').val()	// the user who sent it
+				};
+				
+				//
+				// push the message out to all participants
+				// this includes being echoed back to us
+				//
+				room.send(m);
+				
+				//
+				// reset the message box
+				//
+				$('#mymessage').val('');
+				$('#mymessage').focus();
+			}
+			
+			function showMessage(m) {
+				
+				//
+				// m has three properties, d, b, and u
+				//
+				
+				//
+				// pretty print the date
+				//
+				var formattedTime = (new Date(m.d)).toString('h:mm:ss tt');
+				var timeElement = $('<span>').addClass('chattimestamp').addClass('span2').text(formattedTime);
+				var userElement = $('<span>').addClass('chatusername').addClass('span2').text(m.u);
+				var bodyElement = $('<span>').addClass('chatmessagebody').addClass('span8').text(m.b);
+				var messageElement = $('<div>').addClass('chatmessage')
+					.append(userElement)
+					.append(bodyElement)
+					.append(timeElement);
+				
+				//
+				// update the chat log
+				// 
+				var chatlog = $('#mainroom .chatlog');
+				chatlog.append(messageElement);
+				chatlog.scrollTop(chatlog.prop('scrollHeight'));
+			}
+			
+			function wireUI() {
+				$('#sendbutton').click(sendMessage);
+				$('#mymessage').focus();
+			}
+			
+			function generateUsername() {
+				//
+				// generate a psuedo-random name for the user when the page loads
+				//
+				$('#myusername').val('user'+Math.ceil(Math.random()*1000000));
+			}
+			
+			//
+			// when the ui is ready
+			//
+			$(document).ready(function() {
+				generateUsername();
+				openFeeds();
+				wireUI();
+			});
+		</script>
+		
+	</body>
+</html>

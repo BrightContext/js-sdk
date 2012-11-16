@@ -97,6 +97,24 @@ BCC.Command = function(method, cmdString, parameters) {
 	};
 
 	/**
+	 * Get the command path without parameters
+	 * @returns {string} The path to the API command with no parameters
+	 */
+	this.getCommandUrl = function () {
+		var path = this.cmd.substr(this.cmd.indexOf("/"));
+		return BCC.API_COMMAND_ROOT + path;
+	};
+
+	/**
+	 * Get the command parameters as a url encoded string
+	 * @returns url encoded string of parameters object
+	 */
+	this.getCommandParametersAsEscapedString = function () {
+		var paramstring = JSON.stringify(this.parameters);
+		return "params=" + escape(paramstring);
+	};
+
+	/**
 	 * Returns the command action
 	 * @returns {string} action
 	 */

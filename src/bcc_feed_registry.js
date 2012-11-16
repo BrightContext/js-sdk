@@ -58,7 +58,7 @@ BCC.FeedRegistry = function() {
 	 */
 	this.getAllFeedsForKey = function(feed){
 		var feedsArray = [];
-		var fs = feed.getFeedSettings();
+		var fs = feed.getSettings();
 		var key = this._generateKey(fs);
 		var feedObjects = !!(this.feedMap[key]) ? this.feedMap[key].feedObjects : null;
 		if(!!feedObjects){
@@ -76,12 +76,12 @@ BCC.FeedRegistry = function() {
 	 * @param {BCC.Feed} feed
 	 */
 	this.registerFeed = function(feed) {
-		var fs = feed.getFeedSettings();
+		var fs = feed.getSettings();
 		var key = this._generateKey(fs);
 		if(this.feedMap[key] == null)
-			this.feedMap[key] = new BCC.FeedItem(feed);
+			this.feedMap[key] = new BCC.FeedRegistryItem(feed);
 		else{
-			feed.setFeedHandler(this.feedMap[key].feedHandler);
+			feed.setHandler(this.feedMap[key].feedHandler);
 			this.feedMap[key].addFeed(feed);
 		}
 	};
@@ -93,7 +93,7 @@ BCC.FeedRegistry = function() {
 	 * @param {BCC.Feed} feed
 	 */
 	this.unRegisterFeed = function(feed) {
-		var fs = feed.getFeedSettings();
+		var fs = feed.getSettings();
 		var key = this._generateKey(fs);
 		this.feedMap[key].removeFeed(feed);
 		if(this.feedMap[key].getFeedCount() === 0)
@@ -105,10 +105,35 @@ BCC.FeedRegistry = function() {
 	 * @param {BCC.Feed} feed
 	 */
 	this.getLoadedFeed = function(feed) { // returns the feedSettings for a feed matching the feedkey of the feed that was passed in
-		var fs = feed.getFeedSettings();
+		var fs = feed.getSettings();
 		var key = this._generateKey(fs);
 		if(this.feedMap != null && this.feedMap[key] != null)
-			return this.feedMap[key].feedHandler.getFeedSettings();
+			return this.feedMap[key].feedHandler.getSettings();
+	};
+
+	/** find a feed already registered with matching metadata */
+	this.findFeedWithMetadata = function (feed_metadata) {
+		var found_feed = null,
+				i, j,
+				feed_objects, feed;
+
+		for(i in this.feedMap){
+			feed_objects = this.feedMap[i].feedObjects;
+			
+			for(j in feed_objects) {
+				feed = feed_objects[j];
+				if (feed.hasMetadata(feed_metadata)) {
+					found_feed = feed;
+					break;
+				}
+			}
+
+			if (found_feed) {
+				break;
+			}
+		}
+
+		return found_feed;
 	};
 
 	/**
@@ -116,7 +141,7 @@ BCC.FeedRegistry = function() {
 	 * @param {BCC.Feed} feed 
 	 */
 	this.getFeedHandler = function(feed) { // returns the feedSettings for a feed matching the feedkey of the feed that was passed in
-		var fs = feed.getFeedSettings();
+		var fs = feed.getSettings();
 		var key = this._generateKey(fs);
 		if(this.feedMap != null && this.feedMap[key] != null)
 			return this.feedMap[key].feedHandler;
@@ -127,7 +152,7 @@ BCC.FeedRegistry = function() {
 	 * @param {BCC.Feed} feed
 	 */
 	this.feedExists = function(feed) { // checks if there is already a loaded feed matching this feed's feedkey 
-		var fs = feed.getFeedSettings();
+		var fs = feed.getSettings();
 		var key = this._generateKey(fs);
 		return (this.feedMap[key] != null);
 	};
@@ -137,9 +162,9 @@ BCC.FeedRegistry = function() {
 	 * @param {BCC.Feed} feed
 	 */
 	this.getFeedCount = function(feed) {
-		var fs = feed.getFeedSettings();
+		var fs = feed.getSettings();
 		var key = this._generateKey(fs);
-		return this.feedMap[key].getFeedCount;
+		return this.feedMap[key].getFeedCount();
 	};
 
 	/**
@@ -181,12 +206,12 @@ BCC.FeedRegistry = function() {
  * @param {BCC.Feed} feed 
  * @private
  */
-BCC.FeedItem = function(feed){
+BCC.FeedRegistryItem = function(feed){
 	this.count = 1;
-	this.feedHandler = new BCC.FeedHandler(feed.getFeedSettings());
+	this.feedHandler = new BCC.FeedHandler(feed.getSettings());
 	this.feedObjects = {};
 	this.feedObjects[BCC.EventDispatcher.getObjectKey(feed)] = feed;
-	feed.setFeedHandler(this.feedHandler);
+	feed.setHandler(this.feedHandler);
 
 	/**
 	 * Increments the feed count

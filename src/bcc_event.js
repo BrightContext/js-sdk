@@ -20,6 +20,7 @@ BCC.Event = function(eventType, eventKey, msg) {
 	this.eventType = eventType;
 	this.eventKey = eventKey;
 	this.msg = msg;
+
 	/**
 	 * Returns the eventType
 	 * @returns {string}
@@ -96,22 +97,27 @@ BCC.EventDispatcher = {
 		},
 		/**
 		 * Gets the list of listeners from the listenerMap and dispatches the event (BCC.Event)   
-		 * @param {BCC.Event} event 
+		 * @param {BCC.Event} event_object 
 		 */
-		dispatch : function(event) {
-			var listeners = BCC.EventDispatcher.getListeners(event.eventKey);
+		dispatch : function(event_object) {
+			if (!event_object) return;
+
+			if ('onerror' == event_object.eventType) {
+				BCC.Log.error(JSON.stringify(event_object.msg), 'BCC.EventDispatcher.dispatch');
+			}
+
+			var listeners = BCC.EventDispatcher.getListeners(event_object.eventKey);
 			for (var index in listeners) {
 				var listener = listeners[index];
-				var f = listener[event.eventType];
+				var f = listener[event_object.eventType];				
+
 				if ("function" == typeof(f)) {
-					//f(event.msg);
-					f.call(listener, event.msg);
+					f.call(listener, event_object.msg);
 				}
 				
-				if (("onresponse" == event.eventType) || ("onerror" == event.eventType)) {
+				if (("onresponse" == event_object.eventType) || ("onerror" == event_object.eventType)) {
 					if(typeof listener.isCommand == "function" && !!(listener.isCommand())){
 						BCC.EventDispatcher.unregister(listener.id, listener);
-						BCC.Log.info("Command object unregistered.", "BCC.EventDispatcher.dispatch");
 					}
 				}
 			}

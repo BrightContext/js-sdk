@@ -16,6 +16,8 @@ describe("active inputs", function() {
 	var p = null;
 	
 	beforeEach(function(){
+		BCC_TEST.begin(this);
+
 		ctx = BCC.init(BCC_TEST.VALID_API_KEY);
 		expect(typeof(ctx)).toBe("object");
 		
@@ -24,15 +26,9 @@ describe("active inputs", function() {
 	});
 
 	afterEach(function(){
-		var allFeeds = ctx.feedRegistry.getAllFeeds();
-		for (var i in allFeeds) {
-			var f = allFeeds[i];
-			ctx.closeFeed(f);
-		}
-		
-		waitsFor(function() {
-			return (null == ctx.conn);
-		}, BCC_TEST.TIMEOUT);
+		BCC_TEST.closeContextAndWait(ctx);
+
+		BCC_TEST.end(this);
 	});
 	
 	it("allows adjusting message contract validation on the instance", function() {
@@ -252,6 +248,39 @@ describe("active inputs", function() {
 		});
 	});
 
+	it("should queue only one update", function() {
+		var initial_value = 100;
+		var updated_value1 = 110;
+		var updated_value2 = 120;
+		var updated_value3 = 150;
+		var msg = {n: initial_value};
+		var msg1 = {n: updated_value1};
+		var msg2 = {n: updated_value2};
+		var msg3 = {n: updated_value3};
+		
+		var inputHandler = new BCC_TEST.Listener();
+		quantChannelUseCase(active_channel, msg, inputHandler);
+		
+		runs(function(){
+			inputHandler.f.send(msg1);
+			inputHandler.f.send(msg2);
+			inputHandler.f.send(msg3);
+		});
+		
+		waitsFor(function() {
+			return (0 !== inputHandler.out_messages.length);
+		}, "feed message send", BCC_TEST.TIMEOUT);
+
+		waits(BCC_TEST.TIMEOUT);
+
+		runs(function() {
+			expect(inputHandler.errors.length).toEqual(0);
+			expect(inputHandler.out_messages.length).toEqual(2);
+			expect(inputHandler.out_messages[0].n).toEqual(initial_value);
+			expect(inputHandler.out_messages[1].n).toEqual(updated_value3 - initial_value);
+		});
+	});
+	
 	var quantChannelUseCase = function(chn, msg, inputHandler){
 		p.feed({
 			channel: chn.name,

@@ -1,0 +1,138 @@
+.btn-group {
+	width: 40%;
+	float: left;
+}
+
+.btn-group.gender {
+	margin-left: 48px;
+}
+
+.btn-group .btn {
+	width: 60%;
+}
+
+.backplate {
+	background-color: #eee;
+	padding: 20px;
+}
+.plate {
+	background-color: #fff;
+}
+
+.stream {
+	width: 560px;
+	float: left;
+	padding-bottom: 20px;
+}
+
+.voteinput {
+	float: left;
+	padding: 10px;
+	margin: 10px;
+	width: 370px;
+	margin-right: 0px;
+}
+
+.left {
+	width: 40%;
+	float: left;
+	padding: 0px;
+	margin: 0px;
+	margin-left: 1em;
+}
+
+.right {
+	width: 40%;
+	float: right;
+	padding: 0px;
+	margin: 0px;
+	text-align: right;
+	margin-right: 1em;
+}
+
+.left.label, .right.label {
+	font-weight: bold;
+	background-color: transparent;
+	text-shadow: none;
+	color: inherit;
+	margin-top: 1em;
+}
+
+.left.label, .right.label, .exclamation {
+	text-transform: uppercase;
+}
+
+.backplate.input {
+	padding-bottom: 0em;
+	margin-top: 1em;
+	min-height: 67px;
+}
+
+.question {
+	text-transform: capitalize;
+}
+
+.exclamation {
+	margin: 10px;
+}
+
+.question, .exclamation {
+	font-weight: lighter;
+}
+
+.outputdata {
+	display: block;
+	height: 41px;
+	width: 35%;
+	text-align: left;
+	font-weight: normal;
+	padding-top: .5em;
+	padding-bottom: 0;
+	padding-left: .5em;
+	padding-right: 0;
+}
+
+.progress {
+	height: 35px;
+}
+
+.progress .bar {
+	padding-top: 8px;
+	height: 100%;
+}
+
+.meters {
+	clear: both;
+	padding-top: 10px;
+}
+
+#vid {
+	width: 560px;
+	height: 370px;
+}
+
+#stats {
+	clear: both;
+	padding-top: 20px;
+	min-height: 270px;
+}
+
+#stats .left h4, #stats .right h4 {
+	text-align: left;
+}
+
+#hsss {
+	width: 960px;
+}
+
+#usercount {
+	font-size: 110%;
+	color: #4BB1CF;
+}
+
+#adduserbutton {
+	float:right;
+	margin-right: 1em;
+	margin-bottom: 1em;
+	margin-top: 1em;
+}

@@ -18,7 +18,6 @@ BCC.Ajax = function() {
 	this.ajaxReady = false;
 	this.needsOpening = false;
 	this.needsSending = false;
-	this.scriptPath = BCC.FLASH_XHR_SWF_PATH;
 	this.status = BCC.AJAX_INITIALIZING;
 
 	/**
@@ -26,56 +25,58 @@ BCC.Ajax = function() {
 	 * @private
 	 */
 	this._init = function(){
-		if (this._isXhrCors()) {
-			BCC.Log.debug("XHR CORS Support available","BCC.Ajax.constructor");
+		var me = this;
 
-			this.xhr = new XMLHttpRequest();
+		if (!BCC.Ajax.xhr_type_handle) {
+			BCC.Ajax.xhr_type_handle = (BCC.XMLHttpRequest || window.XDomainRequest || window.XMLHttpRequest);
+		}
+
+		if (!BCC.Ajax.xhr_type_handle) {
+			BCC.Env.checkFlashGateway(function (flash_gateway_error) {
+				if (flash_gateway_error) {
+					BCC.Log.error('no XMLHttpRequest object, XDomainRequest or polyfill available, provide one by setting BCC.XMLHttpRequest to a w3c compatible version', 'BCC.Ajax.constructor');
+				} else {
+					me.initWithFlashGateway(me);
+				}
+			});
+		} else {
+			this.xhr = ('undefined' == typeof(BCC.Ajax.xhr_type_handle.prototype)) ? BCC.Ajax.xhr_type_handle() : new BCC.Ajax.xhr_type_handle();
 			this._doReady(); 
 		}
-		else if (this._isXDomainRequest()) {
-			BCC.Log.debug("XDR CORS Support available","BCC.Ajax.constructor");
+	};
 
-			this.xhr = new XDomainRequest();
-			this._doReady();
+	this.initWithFlashGateway = function (me) {
+		if ('undefined' == typeof(swfobject)) {
+			BCC.Util.injectScript(BCC.Env.pathToLib(BCC.SWF_OBJECT_LIB_PATH), function (swf_load_error) {
+				if (swf_load_error) {
+					BCC.Log.error("Error injecting the SWFObject library","BCC.Ajax.constructor");
+				} else {
+					me.openWithFlashGateway(me);
+				}
+			});
+		} else {
+			me.openWithFlashGateway(me);
 		}
-		else if (swfobject.hasFlashPlayerVersion("9.0.124")) {
+	};
+
+	this.openWithFlashGateway = function (me) {
+		if (swfobject.hasFlashPlayerVersion("9.0.124")) {
 			BCC.Log.debug("Flash Gateway Support available","BCC.Ajax.constructor");
-
 			if (!BCC.Ajax.FlashLoaded) {
-				var scriptNode = document.createElement('SCRIPT');
-				var headNode = document.getElementsByTagName('HEAD');
-				var me = this;
-
-				scriptNode.type = 'text/javascript';
-				scriptNode.src = this.scriptPath;
-				scriptNode.async = true;
-
-				scriptNode.onreadystatechange = function () {
-					if (this.readyState == 'loaded' || this.readyState == 'complete') {
+				BCC.Util.injectScript(BCC.Env.pathToLib(BCC.FLASH_XHR_SWF_PATH), function (flxhr_inject_error) {
+					if(flxhr_inject_error){
+						BCC.Log.error("Error injecting the Flash Gateway library","BCC.Ajax.constructor");
+					} else {
 						BCC.Ajax.FlashLoaded = true;
 						me.xhr = new flensed.flXHR();
 						me._doReady();
 					}
-				};
-				if(scriptNode.readyState == null){
-					scriptNode.onload = function(){
-						BCC.Ajax.FlashLoaded = true;
-						me.xhr = new flensed.flXHR();
-						me._doReady();
-					};
-					scriptNode.onerror = function() {
-						BCC.Log.error("Fatal error. Cannot inject dependancy lib (flxhr)", "BCC.Ajax._init");
-		            };
-				}
-
-				if (headNode[0] != null) headNode[0].appendChild(scriptNode);
+				 });
+			} else {  // BCC.Ajax.FlashLoaded is true
+				me.xhr = new flensed.flXHR();
+				me._doReady();
 			}
-			else {  // BCC.Ajax.FlashLoaded is true
-				this.xhr = new flensed.flXHR();
-				this._doReady();
-			}
-		}
-		else {
+		} else {
 			BCC.Log.error("Browser config not supported","BCC.Ajax.constructor");
 		}
 	};
@@ -97,10 +98,42 @@ BCC.Ajax = function() {
 			this.async = async;
 			this.uname = uname;
 			this.pswd = pswd;
-		} else{
-			this.xhr.open(method, url, async, uname, pswd);
+		} else {
+			try {
+				this.xhr.open(method, url, async, uname, pswd);
+			} catch(ex) {
+				if (BCC.Util.isFn(this.onerror)) {
+					this.onerror(ex);
+				}
+			}
 		}
 	};
+
+	/**
+	 * Equivalent of batch xhr.setRequestHeader calls
+	 */
+	this.setHeaders = function (headers) {
+		if(!this.ajaxReady)
+			this.headers = headers;
+		else {
+			this._setHeaders(headers);
+		}
+	};
+	
+	/**
+	 * Sets the headers to xhr
+		 * @private
+		 */
+		this._setHeaders = function (headers) {
+				for (var k in headers) {
+						var v = headers[k];
+						try {
+							this.xhr.setRequestHeader(k,v);
+						} catch (ex) {
+							BCC.Log.error('failed to set http header: ' + k + ' => ' + v, 'BCC.Ajax._setHeaders');
+						}
+				}
+		};
 
 	/**
 	 * Equivalent of xhr.send
@@ -114,7 +147,13 @@ BCC.Ajax = function() {
 			this.needsSending = true;
 			this.data = data;
 		} else {
-			this.xhr.send(data);
+			try {
+				this.xhr.send(data);
+			} catch (ex) {
+				if (BCC.Util.isFn(this.onerror)) {
+					this.onerror(ex);
+				}
+			}
 		}
 	};
 	/**
@@ -145,10 +184,7 @@ BCC.Ajax = function() {
 	 * @returns {boolean}
 	 */
 	this._isXDomainRequest = function(){
-		//hardcoded to get Flash Gateway
-		//return false;
-
-		if (window.XDomainRequest)
+		if (('undefined' !== typeof(window)) && (window.XDomainRequest))
 			return true;
 		else
 			return false;
@@ -160,10 +196,19 @@ BCC.Ajax = function() {
 	 * @returns {boolean}
 	 */
 	this._isXhrCors = function(){
-		//hardcoded to get Flash Gateway
-		//return false;
+		if (('undefined' !== typeof(XMLHttpRequest)) && ("withCredentials" in new XMLHttpRequest()))
+			return true;
+		else
+			return false;
+	};
 
-		if ("withCredentials" in new XMLHttpRequest())
+	/** 
+	* Checks if Titanium.Network.createHttpClient() is available
+	* @private
+	* @returns {boolean}
+	*/
+	this._isOverride = function() {
+		if ('undefined' !== typeof(BCC.XMLHttpRequest))
 			return true;
 		else
 			return false;
@@ -174,56 +219,70 @@ BCC.Ajax = function() {
 	 * @private
 	 */
 	this._doReady = function() {
-		var me = this;
-		if(!this._isXDomainRequest()){
-			this.xhr.onreadystatechange = function(){
-				if (me.xhr.readyState == 3){
-					if(me.onprogress != null)
-						me.onprogress();
-				} else if (me.xhr.readyState == 4 && me.xhr.status == 200){
+		var me = this, invoke_callback;
+
+		invoke_callback = function (f) {
+			if (BCC.Util.isFn(f)) {
+				f();
+			}
+		};
+
+		if (this._isXDomainRequest()) {
+			this.xhr.onload = function(){
+				me.status = BCC.AJAX_DONE; 
+				invoke_callback(me.onload);
+			};
+
+			this.xhr.onprogress = function(){
+				invoke_callback(me.onprogress);
+			};
+			
+			this.xhr.onerror = function(){
+				me.status = BCC.AJAX_DONE; 
+				invoke_callback(me.onerror);
+			};
+
+			this.xhr.ontimeout = function(){
+				me.status = BCC.AJAX_DONE;
+				invoke_callback(me.onerror);
+			};
+		} else {
+			// not XDomainRequest
+
+			this.xhr.onreadystatechange = function() {
+				if (me.xhr.readyState == 3) {
+					invoke_callback(me.onprogress);
+				} else if (me.xhr.readyState == 4 && me.xhr.status == 200) {
 					me.status = BCC.AJAX_DONE;
-					if(me.onload != null)
-						me.onload();
-				} else if(me.xhr.readyState == 4 && me.xhr.status != 200){
-					if(me.onerror != null && me.status != BCC.AJAX_DONE){
+					invoke_callback(me.onload);
+				} else if (me.xhr.readyState == 4 && me.xhr.status != 200) {
+					if (me.status != BCC.AJAX_DONE) {
 						me.status = BCC.AJAX_DONE;
-						me.onerror();
+						invoke_callback(me.onerror);
 					}
 				}
 			};
-			//FLXHR raises onerror
+
+			this.xhr.onprogress = function() {
+				invoke_callback(me.onprogress);
+			};
+
+			// FLXHR raises onerror
 			if(!this._isXhrCors()){
-				this.xhr.onerror = function(){
+				this.xhr.onerror = function() {
 					me.status = BCC.AJAX_DONE; 
-					if(me.onerror != null) 
-						me.onerror();
+					invoke_callback(me.onerror);
 				};
 			}
-		} else {
-			this.xhr.onload = function(){
-				me.status = BCC.AJAX_DONE; 
-				if(me.onload != null) 
-					me.onload();
-			};
-			this.xhr.onprogress = function(){
-				if(me.onprogress != null) 
-					me.onprogress();
-			};
-			this.xhr.onerror = function(){
-				me.status = BCC.AJAX_DONE; 
-				if(me.onerror != null) 
-					me.onerror();
-			};
-			this.xhr.ontimeout = function(){
-				me.status = BCC.AJAX_DONE; 
-				if(me.onerror != null) me.onerror();
-			};
 		}
+
 		this.ajaxReady = true;
-		if(this.needsOpening) 
+		
+		if (this.needsOpening) {
 			this._doOpen();
-		else
+		} else {
 			this.status = BCC.AJAX_READY;
+		}
 	};
 
 	/**
@@ -232,11 +291,31 @@ BCC.Ajax = function() {
 	 */
 	this._doOpen = function() {
 		this.status = BCC.AJAX_IN_PROGRESS;
-		this.xhr.open(this.method, this.url, this.async, this.uname, this.pswd);
+
+		try {
+			this.xhr.open(this.method, this.url, this.async, this.uname, this.pswd);
+		} catch (ex) {
+			if (BCC.Util.isFn(this.onerror)) {
+				this.onerror(ex);
+			}
+		}
+		
 		this.needsOpening = false;
-		if(this.needsSending === true){
-			this.xhr.send(this.data);
-			this.needsSending = false;
+
+		if (!!this.headers){
+			this._setHeaders(this.headers);
+			this.headers = null;
+		}
+
+		if (this.needsSending === true) {
+			try {
+				this.xhr.send(this.data);
+				this.needsSending = false;
+			} catch (ex) {
+				if (BCC.Util.isFn(this.onerror)) {
+					this.onerror(ex);
+				}
+			}
 		}
 	};
 

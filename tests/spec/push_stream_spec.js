@@ -1,13 +1,10 @@
 describe("push stream", function () {
-	// var ctx, p;
-
 	beforeEach(function () {
-		// ctx = BCC.init(BCC_TEST.VALID_API_KEY);
-		// p = ctx.project(BCC_TEST.INVALID_API_KEY);
+		BCC_TEST.begin(this);
 	});
 
 	afterEach(function () {
-		
+		BCC_TEST.end(this);
 	});
 	
 	it("should tokenize partial messages", function() {
@@ -46,7 +43,7 @@ describe("push stream", function () {
 		expect(0).toEqual(stream.buffer.length);
 
 		if (0 !== stream.buffer.length) {
-			console.error(stream.buffer);
+			BCC.Log.error(stream.buffer, 'jasmine');
 		}
 
 	});
@@ -101,7 +98,7 @@ describe("push stream", function () {
 		expect(0).toEqual(stream.buffer.length);
 
 		if (0 !== stream.buffer.length) {
-			console.error(stream.buffer);
+			BCC.Log.error(stream.buffer, 'jasmine');
 		}
 	});
 	
@@ -150,7 +147,7 @@ describe("push stream", function () {
 		expect(0).toEqual(stream.buffer.length);
 
 		if (0 !== stream.buffer.length) {
-			console.error(stream.buffer);
+			BCC.Log.error(stream.buffer, 'jasmine');
 		}
 	});
 });

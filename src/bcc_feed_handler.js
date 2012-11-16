@@ -21,14 +21,56 @@ BCC.FeedHandler = function(feedSettings) {
 	this.activeUserCycleInprogress = false;
 	this.msgPending = false;
 	this.msgQueue = [];
+	
 	/**
 	 * Returns the feedSettings JSON
 	 * @returns {object} feedSettings JSON
 	 */
-	this.getFeedSettings = function() {
+	this.getSettings = function() {
 		return this.feedSettings;
 	};
 
+	/**
+	 * Empties the message queue
+	 * @private
+	*/
+	this._clearMsgQueue = function(){
+		this.msgQueue = [];
+		BCC.Log.debug("Message queue cleared." ,"BCC.FeedHandler._clearMsgQueue");
+	};
+	
+	/**
+	 * Checks if the message needs to be queued
+	 * @private 
+	 * @param {object} msg  
+	 * @param {BCC.Feed} feed 
+	 * @param {BCC.Connection} conn 
+	 * @param {boolean} cycleTriggered Flag that indicates if the method is invoked automatically as part of the active user cycle
+	 */	
+	this._checkIfMsgSendable = function(msg, feed, conn, cycleTriggered){
+		if(!!this.msgPending){
+			if(cycleTriggered){ //A REVOTE is sent and there is a message pending
+				this._clearMsgQueue(); //The queue might have updates queued up. Clear it all as the active cycle is over
+				this.msgPending = false;
+				BCC.Log.debug("REVOTE not queued" ,"BCC.FeedHandler._checkIfMsgSendable");
+				return true; //Send the REVOTE immediately
+			} else {
+				if (!this.activeUserCycleInprogress) { //This is an INITIAL
+					this._clearMsgQueue(); //The queue might have updates queued up. Clear it all as the active cycle is over
+					this.msgPending = false;
+					BCC.Log.debug("INITIAL not queued" ,"BCC.FeedHandler._checkIfMsgSendable");
+					return true; //Send the INITIAL immediately
+				} else {
+					this._clearMsgQueue(); //The queue will hold just one UPDATE. The previous UPDATE was not sent on-time. So it does not hold good anymore  
+					BCC.Log.debug("Message (UPDATE) queued." ,"BCC.FeedHandler._checkForMsgQueue");
+					this.msgQueue.push({"msg": msg, "feed" : feed, "conn": conn, "cycleTriggered" : cycleTriggered});
+					return false; //UPDATE queued
+				}
+			}
+		}
+		return true; //No need for queuing the message. Send it immediately
+	};
+	
 	/**
 	 * Sends the message over the feed
 	 * @param {object} msg  
@@ -37,9 +79,7 @@ BCC.FeedHandler = function(feedSettings) {
 	 * @param {boolean} cycleTriggered Flag that indicates if the method is invoked automatically as part of the active user cycle
 	 */
 	this.sendMsg = function(msg, feed, conn, cycleTriggered){
-		if(!!this.msgPending){
-			BCC.Log.info("Message queued." ,"BCC.FeedHandler.sendMsg");
-			this.msgQueue.push({"msg": msg, "feed" : feed, "conn": conn, "cycleTriggered" : cycleTriggered});
+		if(!this._checkIfMsgSendable(msg, feed, conn, cycleTriggered)){
 			return false;
 		}
 		if(!!BCC.ContextInstance.getValidateMessagesFlag()){
@@ -66,7 +106,7 @@ BCC.FeedHandler = function(feedSettings) {
 				var me = this;
 				this.activeUserCycleInprogress = true;
 				BCC.Log.info("Active User Cycle (" + this.feedSettings.activeUserCycle + " secs) Started" ,"BCC.FeedHandler.sendMsg");
-				this.cycleHandler = setTimeout(function(){
+				this.cycleHandler = setInterval(function(){
 					me._activeUserCycle(conn);
 				}, this.feedSettings.activeUserCycle*1000);
 			}
@@ -150,16 +190,20 @@ BCC.FeedHandler = function(feedSettings) {
 	/**
 	 * Starts the active user cycle timer
 	 * @private
-	 * @param {BCC.Connection} conn 
+	 * @param {BCC.Connection} connection
 	 */
-	this._activeUserCycle = function(conn){
-		//if (this.lastMsg.ts >= (new Date().getTime() - this.feedSettings.goInactiveTime*1000)){
-		if (BCC.ContextInstance.isUserActive() && (this.lastMsg != null && this.lastMsg.feed != null &&  this.lastMsg.feed.conn != null)){
-				BCC.Log.info("Active User Cycle In Progress." ,"BCC.FeedHandler._activeUserCycle");
-				this.sendMsg(this.lastMsg.msg, this.lastMsg.feed, conn, true);
-				var me = this;
-				this.cycleHandler = setTimeout(function(){me._activeUserCycle(conn);}, this.feedSettings.activeUserCycle*1000);
+	this._activeUserCycle = function (connection) {
+		var connection_closed, user_is_active, last_message_valid;
+
+		connection_closed = (!connection || !connection.endpoint || connection.endpoint.isClosed());
+		user_is_active = BCC.ContextInstance.isUserActive();
+		last_message_valid= (this.lastMsg != null && this.lastMsg.feed != null);
+
+		if (!connection_closed && user_is_active && last_message_valid) {
+			BCC.Log.info("Active User Cycle In Progress." ,"BCC.FeedHandler._activeUserCycle");
+			this.sendMsg(this.lastMsg.msg, this.lastMsg.feed, connection, true);
 		} else {
+			clearInterval(this.cycleHandler);
 			this.cycleHandler = null;
 			this.activeUserCycleInprogress = false;
 			this.lastMsg = null;
@@ -240,9 +284,8 @@ BCC.FeedHandler = function(feedSettings) {
 		// test write protection
 		if (this.feedSettings.writeKeyFlag) {
 			if (!feed.writeKey) {
-				var writeKeyError = new BCC.Event("onerror",
-				 BCC.EventDispatcher.getObjectKey(feed),
-				 "Feed is write protected, but write key was not assigned.  Message cannot be sent.");
+				var writeKeyErrorMessage = "Feed is write protected, but write key was not assigned.  Message cannot be sent.";
+				var writeKeyError = new BCC.Event("onerror", BCC.EventDispatcher.getObjectKey(feed), writeKeyErrorMessage);
 				BCC.EventDispatcher.dispatch(writeKeyError);
 				return null;	// bail
 			}
@@ -296,12 +339,14 @@ BCC.FeedHandler = function(feedSettings) {
 	 * @private
 	 */
 	this._popMsgQueue = function(){
-		for(var index in this.msgQueue){
-			var msgObj = this.msgQueue[index];
-			this.sendMsg(msgObj.msg, msgObj.feed, msgObj.conn, msgObj.cycleTriggered);
-			BCC.Log.info("Message sent from queue : " + JSON.stringify(msgObj.msg),"BCC.FeedHandler._popMsgQueue");
+		if(this.msgQueue.length > 0){
+			for(var index in this.msgQueue){
+				var msgObj = this.msgQueue[index];
+				this.sendMsg(msgObj.msg, msgObj.feed, msgObj.conn, msgObj.cycleTriggered);
+				BCC.Log.info("Message sent from queue : " + JSON.stringify(msgObj.msg),"BCC.FeedHandler._popMsgQueue");
+			}
+			this._clearMsgQueue();
 		}
-		this.msgQueue = [];
 	};
 
 	/**

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		
+		<!--
+			markup and styles first
+			scripts are at the bottom
+		-->
+		
+		<meta charset="utf-8">
+		<title>Skitchin</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="description" content="">
+		<meta name="author" content="">
+		
+		<link href="css/bootstrap.min.css" rel="stylesheet">
+		<link href="css/bootstrap-responsive.min.css" rel="stylesheet">
+		<link href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/themes/start/jquery-ui.css" type="text/css" rel="Stylesheet" />
+		
+		<style type="text/css">
+			* { -webkit-user-select: none; }
+			body { cursor: default; }
+			.loading #drawingsurface,
+			.loading #toolbox,
+			.loading #swatches,
+			.loading #newuserbutton { display: none; }
+			#loadingmessage { display: none; }
+			.loading #loadingmessage { display: block; }
+			#drawingsurface { cursor: crosshair; }
+			#drawingsurface:active, #drawingsurface:focus { cursor: none; }
+			#drawingsurface { border: 1px dashed gray; }
+		</style>
+		
+		<!--[if lt IE 9]>
+			<script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+		<![endif]-->
+	</head>
+	<body class="loading">
+		<div class="container-fluid">
+		
+			<div class="page-header row-fluid">
+				<h1>Skitchin</h1>
+			</div>
+			
+			<div id="loadingmessage" class="row-fluid">
+				<strong>Loading...</strong>
+			</div>
+			
+			<div class="row-fluid">
+				<div id="drawingsurfacecontainer" class="span10">
+					<div id="drawingsurface" onclick="javascript:void(0)"></div>
+				</div>
+				<div class="span2">
+					<h3>draw something!</h3>
+					<p>and watch others do the same</p>
+					
+					<div id="toolbox" class="well">
+						<ul class="nav nav-list">
+							<li class="active"><a href="javascript:void(0)" data-toolname="pencil">Pencil</a></li>
+							<li><a href="javascript:void(0)" data-toolname="circle">Circle</a></li>
+							<li><a href="javascript:void(0)" data-toolname="box">Box</a></li>
+							<li><a href="javascript:void(0)" data-toolname="line">Line</a></li>
+						</ul>
+					</div>
+					
+					<div id="swatches" class="well">
+						<ul class="nav nav-list">
+							<li class="active"><a href="javascript:void(0)" data-r="0" data-g="0" data-b="0">Black</a></li>
+							<li><a href="javascript:void(0)" data-r="255" data-g="0" data-b="0">Red</a></li>
+							<li><a href="javascript:void(0)" data-r="0" data-g="0" data-b="255">Blue</a></li>
+							<li><a href="javascript:void(0)" data-r="0" data-g="255" data-b="0">Green</a></li>
+						</ul>
+					</div>
+					
+					<a id="newuserbutton"
+						href="javascript:void(0)"
+						onclick="window.open(window.location.href)"
+						target="_new"
+						class="btn"><i class="icon-plus-sign"></i> User</a>
+					
+				</div>
+			</div>
+			
+			<footer>
+				<hr>
+				<p><a href="http://www.brightcontext.com">Powered by BrightContext</a></p>
+			</footer>
+		</div>
+		
+		<!-- realtime -->
+		<script type="text/javascript" src="http://static.brightcontext.com/js-sdk/bcc.min.js"></script>
+		
+		<!-- ui -->
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+		<script src="js/bootstrap.min.js" type="text/javascript"></script>
+		<script src="js/date.js" type="text/javascript" charset="utf-8"></script>
+		<script src="js/raphael.min.js" type="text/javascript" charset="utf-8"></script>
+		
+		<!-- drawing -->
+		<script src="js/sketch.js" type="text/javascript" charset="utf-8"></script>
+		
+		<!-- main example -->
+		<script type="text/javascript">
+			//
+			// replace with your API Key from the settings panel
+			//
+			var apikey = '';
+
+			if ('' === apikey) {
+				alert("You can find or create your API Key using the management dashboard.\n\nhttps://mgr.brightcontext.com\n\nSee readme.txt for details.");
+				return;
+			}
+			
+			//
+			// the name of your project
+			//
+			var projectname = 'Example - Chatter';
+		
+			//
+			// the name of the Thru Channel inside that project
+			//
+			var channelname = 'mainlobby';
+
+			//
+			// the name of the private sub channel we will create on the fly
+			// only whiteboard traffic will be on this feed
+			// 
+			var subchannelname = 'whiteboard';
+			
+			//
+			// our shared whiteboard feed used to communicate with others
+			//
+			var whiteboard = null;
+			
+			//
+			// our drawing surface
+			//
+			var s;
+			
+			//
+			// our unique user id, will be shared with others
+			//
+			var userid;
+			
+			//
+			// initialize our drawing surface with some new paper to draw on
+			//
+			function initSurface() {
+				s = new sketch('drawingsurface',100,100);
+			}
+			
+			//
+			// listen for window resizing and adjust accordingly
+			//
+			function resizeDrawingSurface() {
+				var w = $('#drawingsurfacecontainer').width();
+				var h = 2 * ( $('#toolbox').height() + $('#swatches').height() + $('#newuserbutton').height() );
+				s.resize(w,h);
+			}
+			
+			//
+			// setup the toolbox with some buttons
+			//
+			function initToolbox() {
+				s.selectTool(s.TOOLS.PENCIL);
+				
+				$('#toolbox a').click(function() {
+					var t = $(this).attr('data-toolname');
+					s.selectTool(t);
+					$('#toolbox li').removeClass('active');
+					$(this).parent().addClass('active');
+				});
+			}
+			
+			//
+			// setup the swatches to change colors
+			//
+			function initSwatches() {
+				s.selectStrokeColor(0,0,0);
+				
+				$('#swatches a').click(function() {
+					var r = $(this).attr('data-r');
+					var g = $(this).attr('data-g');
+					var b = $(this).attr('data-b');
+					s.selectStrokeColor(r,g,b);
+					$('#swatches li').removeClass('active');
+					$(this).parent().addClass('active');
+				});
+			}
+			
+			//
+			// networking code
+			//
+			function initUser() {
+				//
+				// initialize the platform and open the project
+				//
+				var ctx = BCC.init(apikey);
+				
+				//
+				// create a unique id for this user
+				//
+				ctx.uuid(function (id, err) {
+					if (err) {
+						console.error(err);	// something went wrong
+					} else {
+						userid = id;
+						openFeeds(ctx);
+					}
+				});
+			}
+			
+			function openFeeds(ctx) {
+				var p = ctx.project(projectname);
+				
+				//
+				// turn on debug logging
+				//
+				BCC.setLogLevel(BCC.LogLevel.DEBUG);
+				
+				//
+				// open the Thru Feed that will be our whiteboard
+				//
+				p.feed({
+					channel: channelname,
+					onopen: function(f) {
+						//
+						// called only once, when the feed is opened and ready for use
+						//
+						
+						wireDrawEventsToFeed(f);
+					},
+					onmsgreceived: function(f, msg) {
+						//
+						// called every time a message is broadcasted
+						//
+						
+						//
+						// filter out drawings by the local user id
+						//
+						if (msg.u != userid) {
+							//
+							// only draw things that were not already drawn locally
+							//
+							showNetworkDrawing(msg.d);
+						}
+					},
+					onerror: function(err) {
+						//
+						// if we encounter any issues, this event is how we let you know about them
+						//
+						console.error(err);
+					}
+				});
+			}
+			
+			function wireDrawEventsToFeed(f) {
+				//
+				// save a handle to our whiteboard feed
+				//
+				whiteboard = f;
+				
+				//
+				// capture and send local draw events to others
+				//
+				s.bind(s.EVENTS.DRAW, function(drawEvent) {
+					whiteboard.send({
+						u: userid, d: drawEvent
+					});
+				})
+				
+				finishedLoading();
+			}
+			
+			function showNetworkDrawing(drawEvent) {
+				//
+				// update our sketch with drawing that was done by others
+				//
+				s.draw(drawEvent);
+			}
+			
+			$(document).ready(function() {
+				//
+				// setup the drawing surface
+				//
+				initSurface();
+				initToolbox();
+				initSwatches();
+				
+				//
+				// wire up the realtime whiteboard
+				//
+				initUser();
+			});
+			
+			function finishedLoading() {
+				//
+				// done setting things up, let the drawing begin
+				//
+				$(window).resize(resizeDrawingSurface);
+				$("body").removeClass("loading");
+				resizeDrawingSurface();
+			}
+			
+		</script>
+		
+	</body>
+</html>

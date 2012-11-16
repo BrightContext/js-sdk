@@ -1,56 +1,58 @@
 describe("session", function() {
-	var hasError = true;
-	var callReturned = false;
 	
-	beforeEach(function(){
-		hasError = true;
-		callReturned = false;
+	beforeEach(function () {
+		BCC_TEST.begin(this);
+	});
+
+	afterEach(function () {
+		BCC_TEST.end(this);
 	});
 
 	it ("should error with an invalid api key", function() {
-		var errorObj = null;
-		var sess = new BCC.Session(BCC_TEST.INVALID_API_KEY);
-		sess.onopen = function(){
-			hasError = false;
-			callReturned = true;
-		};
-		sess.onerror = function(e){
-			errorObj = e;
-			hasError = true;
-			callReturned = true;
-		};
-		sess.open();
+		var completion_fired = false,
+				session = null
+		;
+
+		session = new BCC.Session(BCC_TEST.INVALID_API_KEY);
+		session.create(function (session_create_error, new_session) {
+			expect(session_create_error).not.toBeNull();
+			expect(new_session).toBeFalsy();
+			completion_fired = true;
+		});
 
 		waitsFor(function() {
-			return callReturned;
-		}, "Session Open timed out", BCC_TEST.TIMEOUT);
-		
-		runs(function(){
-			expect(hasError).toEqual(true);
-			expect(errorObj).toBe("Session Open Failed");
-			// it would be better if we could test the client header was 400
-		});
+			return completion_fired;
+		}, "session create", BCC_TEST.TIMEOUT);
 	});
 		
-	var openValidSession = function(completion) {
-		var sess = new BCC.Session(BCC_TEST.VALID_API_KEY);
-		sess.onopen = function(){hasError = false; callReturned = true;};
-		sess.onerror = function(){hasError = true; callReturned = true;};
-		sess.open();
+	var createValidSession = function(completion) {
+		var completion_fired = false,
+				session = null
+		;
 
-		waitsFor(function() {
-			return callReturned;
-		}, "Session Open timed out (5 secs)", BCC_TEST.TIMEOUT);
+		session = new BCC.Session(BCC_TEST.VALID_API_KEY);
+
+		expect(session.getSessionCreateUrl()).toMatch(/session\/create.json$/);
+
+		session.create(function (session_create_error, new_session) {
+			expect(session_create_error).toBeNull();
+			expect(new_session).toBe(session);
+			completion_fired = true;
+		});
+
+		waitsFor(function () {
+			return completion_fired;
+		}, "session create", BCC_TEST.TIMEOUT);
 		
-		runs(function(){
-			expect(hasError).toEqual(false);
-			completion(sess);
+		runs(function () {
+			completion(session);
 		});
 	};
 	
 	it ("has a valid session id", function() {
-		openValidSession(function(sess) {
-			var sid = sess.getSessId();
+		createValidSession(function(sess) {
+			var sid = sess.getSessionId();
+
 			expect(sid).not.toBeNull();
 			expect(sid).not.toBeUndefined();
 			expect(sid).not.toBe("");
@@ -61,24 +63,12 @@ describe("session", function() {
 	});
 	
 	it ("has valid session properties", function() {
-		openValidSession(function(sess) {
+		createValidSession(function(sess) {
 			var props = sess.getProperties();
 			expect(props).not.toBeNull();
 			expect(props).not.toBeUndefined();
 			expect(props).not.toBe("");
 			expect(props).not.toEqual("");
-
-			expect(props.domain).not.toBeNull();
-			expect(props.domain).not.toBeUndefined();
-			expect(props.domain).not.toBe("");
-			expect(props.domain).not.toEqual("");
-			expect(props.domain).toMatch(/^http:\/\//);
-
-			expect(props.domain).not.toBeNull();
-			expect(props.domain).not.toBeUndefined();
-			expect(props.domain).not.toBe("");
-			expect(props.domain).not.toEqual("");
-			expect(props.domain).toMatch(/^http:\/\//);
 
 			expect(props.stime).not.toBeNull();
 			expect(props.stime).not.toBeUndefined();
@@ -86,54 +76,44 @@ describe("session", function() {
 			expect(props.stime).not.toEqual("");
 			expect(isNaN(props.stime)).toBe(false);
 			expect(parseInt(props.stime,10)).toBe(props.stime);
+
+			expect(props.endpoints).not.toBeUndefined();
+
+			expect(props.endpoints.socket).not.toBeNull();
+			expect(props.endpoints.socket).not.toBeUndefined();
+			expect(props.endpoints.socket.length).toBeGreaterThan(0);
+
+			expect(props.endpoints.flash).not.toBeNull();
+			expect(props.endpoints.flash).not.toBeUndefined();
+			expect(props.endpoints.flash.length).toBeGreaterThan(0);
+
+			expect(props.endpoints.rest).not.toBeNull();
+			expect(props.endpoints.rest).not.toBeUndefined();
+			expect(props.endpoints.rest.length).toBeGreaterThan(0);
 		});
 	});
 	
 	it ("builds a valid websocket url", function() {
-		openValidSession(function(sess) {
-			var wsUrl = sess.getSocketUrl();
+		createValidSession(function (s) {
+			var wsUrl = s.getSocketUrl(s.getEndpoints().socket[0]);
 			expect(wsUrl).not.toBeNull();
 			expect(wsUrl).not.toBeUndefined();
 			expect(wsUrl).not.toBe("");
 			expect(wsUrl).not.toEqual("");
 			expect(wsUrl).toMatch(/^ws:\/\//);
+			expect(wsUrl).toMatch(/feed\/ws$/);
 		});
 	});
 	
 	it ("builds a valid stream url", function() {
-		openValidSession(function(sess) {
-			var streamUrl = sess.getStreamUrl();
+		createValidSession(function (s) {
+			var streamUrl = s.getStreamUrl(s.getEndpoints().rest[0]);
 			expect(streamUrl).not.toBeNull();
 			expect(streamUrl).not.toBeUndefined();
 			expect(streamUrl).not.toBe("");
 			expect(streamUrl).not.toEqual("");
 			expect(streamUrl).toMatch(/^http:\/\//);
-			expect(streamUrl).toMatch(/m=STREAM$/);
+			expect(streamUrl).toMatch(/stream\/create.json$/);
 		});
 	});
-	
-	it ("builds a valid rest url", function() {
-		openValidSession(function(sess) {
-			var restUrl = sess.getRestUrl();
-			expect(restUrl).not.toBeNull();
-			expect(restUrl).not.toBeUndefined();
-			expect(restUrl).not.toBe("");
-			expect(restUrl).not.toEqual("");
-			expect(restUrl).toMatch(/^http:\/\//);
-		});
-	});
-	
-	it ("builds a valid long poll url", function() {
-		openValidSession(function(sess) {
-			var restUrl = sess.getLongPollUrl();
-			expect(restUrl).not.toBeNull();
-			expect(restUrl).not.toBeUndefined();
-			expect(restUrl).not.toBe("");
-			expect(restUrl).not.toEqual("");
-			expect(restUrl).toMatch(/^http:\/\//);
-			expect(restUrl).toMatch(/m=LONG_POLL$/);
-		});
-	});
-	
-
 });

@@ -1,6 +1,8 @@
 describe("history", function() {
 	
 	beforeEach(function(){
+		BCC_TEST.begin(this);
+
 		ctx = BCC.init(BCC_TEST.VALID_API_KEY);
 		expect(typeof(ctx)).toBe("object");
 		
@@ -9,15 +11,9 @@ describe("history", function() {
 	});
 	
 	afterEach(function(){
-		var allFeeds = ctx.feedRegistry.getAllFeeds();
-		for (var i in allFeeds) {
-			var f = allFeeds[i];
-			ctx.closeFeed(f);
-		}
-		
-		waitsFor(function() {
-			return (null == ctx.conn);
-		}, BCC_TEST.TIMEOUT);
+		BCC_TEST.closeContextAndWait(ctx);
+
+		BCC_TEST.end(this);
 	});
 	
 	it("should support optional parameters", function() {
@@ -26,7 +22,7 @@ describe("history", function() {
 		var captured_history = null;
 
 		p.feed({
-			channel: BCC_TEST.THRU_CHANNEL,
+			channel: 'thru history',
 			onopen: function (f) {
 				f.getHistory();
 			},
@@ -37,7 +33,7 @@ describe("history", function() {
 
 		waitsFor(function(argument) {
 		  return (null !== captured_history);
-		});
+		}, "history", BCC_TEST.TIMEOUT);
 
 		runs(function() {
 		  expect(captured_history.length).toEqual(expected_default_limit);
@@ -62,7 +58,7 @@ describe("history", function() {
 
 		waitsFor(function(argument) {
 		  return (null !== captured_history);
-		});
+		}, "history", BCC_TEST.TIMEOUT);
 
 		runs(function() {
 		  expect(captured_history.length).toEqual(expected_limit);
@@ -70,42 +66,17 @@ describe("history", function() {
 
 	});
 
-	it("should support explicit future timestamp", function() {
-		var expected_limit = 1;
-		var testId = Math.random();
-
-		var captured_history = null;
-
-		p.feed({
-			channel: BCC_TEST.THRU_CHANNEL,
-			onopen: function (f) {
-				f.send({ 'historytestid' : testId });
-			},
-			onmsgsent: function (f, m) {
-				var future = (new Date()).getTime() + 60000;
-				f.getHistory(1, future);
-			},
-			onhistory: function (f, history) {
-				captured_history = history;
-			}
-		});
-
-		waitsFor(function(argument) {
-		  return (null !== captured_history);
-		});
-
-		runs(function() {
-		  expect(captured_history.length).toEqual(1);
-		  expect(captured_history[0].message.historytestid).toEqual(testId);
-		});
-
-	});
-
 	it("should support explicit completion handler", function() {
-		var expected_limit = 1;
-		var testId = Math.random();
+		var expected_limit = 1,
+				testId = Math.random(),
+				captured_history = null,
+				sent_ts = null,
+				received_ts = null,
+				history_ts = null;
 
-		var captured_history = null;
+		var now = function () {
+			return (new Date()).getTime();
+		};
 
 		p.feed({
 			channel: BCC_TEST.THRU_CHANNEL,
@@ -113,8 +84,12 @@ describe("history", function() {
 				f.send({ 'historytestid' : testId });
 			},
 			onmsgsent: function (f, m) {
-				var future = (new Date()).getTime() + 60000;
-				f.getHistory(1, future, function (x,y) {
+				sent_ts = now();
+			},
+			onmsgreceived: function (f, m) {
+				received_ts = now();
+				f.getHistory(1, received_ts, function (x,y) {
+					history_ts = now();
 					captured_history = y;
 				});
 			}
@@ -122,9 +97,11 @@ describe("history", function() {
 
 		waitsFor(function(argument) {
 		  return (null !== captured_history);
-		});
+		}, "history", BCC_TEST.TIMEOUT);
 
 		runs(function() {
+			expect(received_ts - sent_ts).toBeLessThan(1000);
+			expect(history_ts - sent_ts).toBeLessThan(1000);
 		  expect(captured_history.length).toEqual(1);
 		  expect(captured_history[0].message.historytestid).toEqual(testId);
 		});
@@ -198,8 +175,9 @@ describe("history", function() {
 	it("should return thru history", function(){
 		var thruHandler = new BCC_TEST.Listener();
 
-		var num_messages_to_send = 10;
-		testThruUseCase(num_messages_to_send, thruHandler);
+		var num_messages_to_send = 10,
+				test_id = Math.random();
+		testThruUseCase(num_messages_to_send, thruHandler, test_id);
 		
 		// wait for local echo
 		waitsFor(function() {
@@ -231,7 +209,8 @@ describe("history", function() {
 				expect(msg).not.toBeNull();
 				expect(msg).not.toBeUndefined();
 				expect(typeof msg).toBe("object");
-				expect(msg.m).toBe("message " + k);
+				expect(msg.m).toMatch(/message.[0-9]/);
+				expect(msg.test_id).toEqual(test_id);
 
 				var ts = history[k].ts;
 				expect(ts).not.toBeNull();
@@ -245,20 +224,19 @@ describe("history", function() {
 				expect(ts_as_date.getDay()).toEqual(now.getDay());
 				expect(ts_as_date.getMonth()).toEqual(now.getMonth());
 				expect(ts_as_date.getHours()).toEqual(now.getHours());
-
-				if (k !== 0) {
-					// confirm sort order by time, decending
-					var prevTs = history[k-1].ts;
-					expect(ts <= prevTs).toBeTruthy();
-				}
+				expect(ts_as_date.getMinutes()).toEqual(now.getMinutes());
 			}
 		});
 	});
 	
-	var testThruUseCase = function(num_messages_to_send, thruHandler){
+	var testThruUseCase = function(num_messages_to_send, thruHandler, test_id){
 		var messages_to_send = [];
 		for (var i = 0; i!= num_messages_to_send; ++i) {
-			messages_to_send.push( { m : "message " + i } );
+			var o = {
+				m : "message " + i,
+				test_id : test_id
+			};
+			messages_to_send.push(o);
 		}
 
 		p.feed({
@@ -285,7 +263,8 @@ describe("history", function() {
 		var numSent = 0;
 		var sendNext = function () {
 			numSent = thruHandler.out_messages.length;
-			thruHandler.f.send(messages_to_send.pop());
+			var m = messages_to_send.pop();
+			thruHandler.f.send(m);
 		};
 
 		var messageSent = function() {

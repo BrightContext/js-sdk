@@ -35,6 +35,10 @@ documentation
 
     ./makedocs.sh
 
+### CommonJS / Titanium / Node.js
+
+When running in non-browser environments, BrightContext will work, but you need to provide a polyfill for a w3c compatible `WebSocket` and `XMLHttpRequest` implementation.  See the examples directory for an example of how to do this in node.js and titanium.
+
 ### License
 
 MIT

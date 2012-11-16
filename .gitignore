@@ -3,3 +3,4 @@ docs
 .komodotools
 node_modules
 build
+*.swp

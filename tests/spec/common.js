@@ -1,6 +1,9 @@
 var BCC_TEST = {};
 
-BCC_TEST.VALID_API_KEY = "8b6522e5-d1ed-4bf9-870c-6ab2be742f4d";
+BCC_TEST.INSECURE_KEY = "ca714a27-44a6-4939-89d6-93f7a8d22548";
+BCC_TEST.SECURE_KEY = "8f2fbe21-6521-4fe2-94c9-e88ac14197fb";
+
+BCC_TEST.VALID_API_KEY = BCC_TEST.INSECURE_KEY;
 BCC_TEST.INVALID_API_KEY = "invalid-api-key";
 
 BCC_TEST.CONN_TYPE_WEB_SOCK = "WEB_SOCKET";
@@ -11,10 +14,20 @@ BCC_TEST.CONN_TYPE_FLASH_LONGPOLL = "FLASH_LONG_POLL";
 
 BCC_TEST.TEST_PROJECT = "js unit tests";
 BCC_TEST.THRU_CHANNEL = "unprotected thru";
+BCC_TEST.THRU_CHANNEL_PROTECTED = "protected thru";
+BCC_TEST.THRU_CHANNEL_PROTECTED_WRITEKEY = 'b9a9b7fa6645a0ea';
 
-BCC_TEST.TIMEOUT = 10000;
-BCC_TEST.MESSAGE_TIMEOUT = 20000;
+BCC_TEST.TIMEOUT = 30000;
+BCC_TEST.MESSAGE_TIMEOUT = 30000;
 BCC_TEST.REVOTE_TIMER = 60000;
+
+BCC_TEST.begin = function (t) {
+	BCC.Log.debug("BEGIN", "TEST " + t.suite.description + " " + t.description);
+};
+
+BCC_TEST.end = function (t) {
+	BCC.Log.debug("END", "TEST " + t.suite.description + " " + t.description);
+};
 
 BCC_TEST.Listener = function() {
 	this.opens = 0;
@@ -70,4 +83,28 @@ BCC_TEST.buildPayload = function (payload_size) {
 	}
 	data.push("\" }");
 	return data;
+};
+
+
+BCC_TEST.keys = function(o) {
+	var a = [];
+	for (var k in o) { a.push(k); }
+	return a;
+};
+
+
+BCC_TEST.closeContextAndWait = function (ctx) {
+	var done = false;
+
+	if (!ctx) {
+		return;
+	}
+	
+	runs(function() {
+		ctx.forceShutdown();
+	});
+
+	waitsFor(function() {
+		return ((ctx.conn == null) || (ctx.conn.endpoint == null) || (ctx.conn.endpoint.isClosed()));
+	}, 'endpoint closing', BCC_TEST.TIMEOUT);
 };

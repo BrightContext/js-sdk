@@ -10,6 +10,8 @@ describe("processed feeds", function() {
 	var p = null;
 	
 	beforeEach(function(){
+		BCC_TEST.begin(this);
+
 		ctx = BCC.init(BCC_TEST.VALID_API_KEY);
 		expect(typeof(ctx)).toBe("object");
 		
@@ -18,15 +20,9 @@ describe("processed feeds", function() {
 	});
 
 	afterEach(function(){
-		var allFeeds = ctx.feedRegistry.getAllFeeds();
-		for (var i in allFeeds) {
-			var f = allFeeds[i];
-			ctx.closeFeed(f);
-		}
-		
-		waitsFor(function() {
-			return (!ctx.conn);
-		}, BCC_TEST.TIMEOUT);
+		BCC_TEST.closeContextAndWait(ctx);
+
+		BCC_TEST.end(this);
 	});
 	
 	it("should throw error if message is not a valid json", function() {
@@ -34,7 +30,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.errors.length);
@@ -52,7 +48,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.errors.length);
@@ -70,7 +66,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.errors.length);
@@ -88,7 +84,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.out_messages.length);
@@ -116,7 +112,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.errors.length);
@@ -134,7 +130,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.out_messages.length);
@@ -162,7 +158,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.out_messages.length);
@@ -190,7 +186,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.errors.length);
@@ -208,7 +204,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.out_messages.length);
@@ -236,7 +232,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.errors.length);
@@ -254,7 +250,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.errors.length);
@@ -272,7 +268,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.errors.length);
@@ -289,7 +285,7 @@ describe("processed feeds", function() {
 		var msg = {s: "test string", d: new Date(1343805046698), n: 100, extra: "Howdy"};
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.out_messages.length);
@@ -317,7 +313,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(false);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.out_messages.length);
@@ -345,7 +341,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(false);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.out_messages.length);
@@ -373,7 +369,7 @@ describe("processed feeds", function() {
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(false);
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== inputHandler.out_messages.length);
@@ -400,7 +396,7 @@ describe("processed feeds", function() {
 		var msg = {s: "test string", d: new Date(1343805046698), n: 100};
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
-		quantChannelUseCase(passthrough_channel, msg, inputHandler, outputHandler);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
 		
 		waitsFor(function() {
 			return (0 !== outputHandler.in_messages.length);
@@ -464,15 +460,16 @@ describe("processed feeds", function() {
 			
 			expect(outputHandler.in_messages.length).not.toEqual(0);
 
-			outputHandler.in_messages.forEach(function(m, i) {
-				expect(typeof m.v).toBe("number");
-				expect(m.v).toEqual(filtered_channel.output_filter.v);
-			});
+			for (var i in outputHandler.in_messages) {
+			  var m = outputHandler.in_messages[i];
+			  expect(typeof m.v).toBe("number");
+			  expect(m.v).toEqual(filtered_channel.output_filter.v);
+			}
 		});
 
 	});
 	
-	var quantChannelUseCase = function(channelInfo, msg, inputHandler, outputHandler) {
+	var quantChannelUseCase = function(channelInfo, msgs, inputHandler, outputHandler) {
 		
 		p.feed({
 			channel: channelInfo.name,
@@ -500,19 +497,13 @@ describe("processed feeds", function() {
 		}, "feed open", BCC_TEST.TIMEOUT);
 		
 		runs(function() {
-			if (Array.isArray(msg)) {
-
-				var timeoutInterval = setInterval(function() {
-					if (0 === msg.length) {
-						clearTimeout(timeoutInterval);
-					} else {
-						inputHandler.f.send(msg.shift());
-					}
-				}, 500);	// send two messages per second
-
-			} else {
-				inputHandler.f.send(msg);
-			}
+			var timeoutInterval = setInterval(function() {
+				if (0 === msgs.length) {
+					clearTimeout(timeoutInterval);
+				} else {
+					inputHandler.f.send(msgs.shift());
+				}
+			}, 500);	// send two messages per second
 		});
 	};
 
