@@ -8,6 +8,25 @@ describe("session", function() {
 		BCC_TEST.end(this);
 	});
 
+	it ("should error with an short api key", function() {
+		var completion_fired = false,
+				session = null
+		;
+
+		session = new BCC.Session(BCC_TEST.INVALID_API_KEY_SHORT);
+		session.create(function (session_create_error, new_session) {
+			expect(session_create_error).not.toBeNull();
+			expect(session_create_error).toMatch(/invalid/i);
+			expect(session_create_error).toMatch(/api key/i);
+			expect(new_session).toBeFalsy();
+			completion_fired = true;
+		});
+
+		waitsFor(function() {
+			return completion_fired;
+		}, "session create", BCC_TEST.TIMEOUT);
+	});
+
 	it ("should error with an invalid api key", function() {
 		var completion_fired = false,
 				session = null
@@ -16,6 +35,8 @@ describe("session", function() {
 		session = new BCC.Session(BCC_TEST.INVALID_API_KEY);
 		session.create(function (session_create_error, new_session) {
 			expect(session_create_error).not.toBeNull();
+			expect(session_create_error).toMatch(/invalid/i);
+			expect(session_create_error).toMatch(/api key/i);
 			expect(new_session).toBeFalsy();
 			completion_fired = true;
 		});

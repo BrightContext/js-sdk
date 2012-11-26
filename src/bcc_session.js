@@ -35,21 +35,25 @@ BCC.Session = function(apiKey) {
 	 * Opens the session
 	 */
 	this.create = function (completion) {
-		me._injectJsonLibIfNeeded(function (json_inject_error) {
-			if (json_inject_error) {
-				completion(json_inject_error);
-			} else {
-				me._establishNewSession(function (establish_error, session_data) {
-					if (establish_error) {
-						completion(establish_error);
-					} else {
-						BCC.Log.debug(JSON.stringify(session_data), 'BCC.Session.create');
-						me.session_data = session_data;
-						completion(null, me);
-					}
-				});
-			}
-		});
+		if (!me.apiKey || ("string" !== typeof(me.apiKey)) || ('' === BCC.Util.trim(this.apiKey)) || (36 != me.apiKey.length)) {
+			completion('invalid api key');
+		} else {
+			me._injectJsonLibIfNeeded(function (json_inject_error) {
+				if (json_inject_error) {
+					completion(json_inject_error);
+				} else {
+					me._establishNewSession(function (establish_error, session_data) {
+						if (establish_error) {
+							completion(establish_error);
+						} else {
+							BCC.Log.debug(JSON.stringify(session_data), 'BCC.Session.create');
+							me.session_data = session_data;
+							completion(null, me);
+						}
+					});
+				}
+			});			
+		}
 	};
 	
 	this._establishNewSession = function (completion) {
@@ -65,7 +69,15 @@ BCC.Session = function(apiKey) {
 				}
 			},
 			onerror: function (error) {
-				completion(error || 'error establishing session');
+				var message = null;
+				try {
+					if (error) {
+						message = JSON.parse(error).error;
+					}
+				} catch (ex) {
+					BCC.Log.debug('could not parse error response', 'BCC.Session._establishNewSession');
+				}
+				completion(message || 'error establishing session');
 			}
 		});
 	};

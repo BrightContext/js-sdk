@@ -84,29 +84,29 @@
 					<div class="left">
 						<h4>Everyone</h4>
 						<div class="progress progress-info">
-							<div id="stat-everyone" class="bar"></div>
+							<div id="stat-everyone" class="bar"><span class="stat-value"></span></div>
 						</div>
 						<h4>Women</h4>
 						<div class="progress progress-info">
-							<div id="stat-women" class="bar"></div>
+							<div id="stat-women" class="bar"><span class="stat-value"></span></div>
 						</div>
 						<h4>Men</h4>
 						<div class="progress progress-info">
-							<div id="stat-men" class="bar" data-percentage="50"></div>
+							<div id="stat-men" class="bar"><span class="stat-value"></span></div>
 						</div>
 					</div>
 					<div class="right">
 						<h4>18-34</h4>
 						<div class="progress progress-info">
-							<div id="stat-bracket1" class="bar"></div>
+							<div id="stat-bracket1" class="bar"><span class="stat-value"></span></div>
 						</div>
 						<h4>35-54</h4>
 						<div class="progress progress-info">
-							<div id="stat-bracket2" class="bar"></div>
+							<div id="stat-bracket2" class="bar"><span class="stat-value"></span></div>
 						</div>
 						<h4>55+</h4>
 						<div class="progress progress-info">
-							<div id="stat-bracket3" class="bar"></div>
+							<div id="stat-bracket3" class="bar"><span class="stat-value"></span></div>
 						</div>
 					</div>
 				</div>
@@ -126,7 +126,6 @@
 		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
 		<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js" type="text/javascript"></script>
 		<script src="js/bootstrap.min.js" type="text/javascript"></script>
-		<script src="js/bootstrap-progressbar.min.js" type="text/javascript" charset="utf-8"></script>
 		
 		<!-- main example -->
 		<script type="text/javascript">
@@ -137,7 +136,6 @@
 
 			if ('' === apikey) {
 				alert("You can find or create your API Key using the management dashboard.\n\nhttps://mgr.brightcontext.com\n\nSee readme.txt for details.");
-				return;
 			}
 			
 			//
@@ -160,16 +158,6 @@
 			// this is the global handle to the vote feed, created when we open it
 			//
 			var votes = null;
-			
-			//
-			// a reusable meter animation for when output changes
-			//
-			var meter_animation = {
-				transition_delay: 300,
-				refresh_speed: 50,
-				display_text: 1,
-				use_percentage: true
-			};
 			
 			function openFeeds() {
 				//
@@ -246,16 +234,16 @@
 				//
 				// animate all the progress bars to 50%
 				//
-				$('.progress .bar').attr({'data-percentage': 50}).progressbar(meter_animation);
+				$('.progress .bar').css({'width': '50%'});
 				
 				//
 				// update drop-down data attributes when value changes
 				//
 				$('.voteinput .dropdown-menu a').click(function() {
-					var v = $(this).attr('data-value');
+					var v = $(this).data('value');
 					var t = $(this).text();
 					var p = $(this).parents('.btn-group');
-					p.attr('data-value', v);
+					p.data('value', v);
 					p.find('.button-label').text(t);
 				});
 			}
@@ -273,8 +261,8 @@
 					// capture the data from the UI
 					//
 					var v = ui.value
-					var a = $("#ddage").attr('data-value');
-					var g = $("#ddgender").attr('data-value');
+					var a = $("#ddage").data('value');
+					var g = $("#ddgender").data('value');
 					
 					
 					/*
@@ -310,9 +298,9 @@
 					avg_everyone : 10,
 					avg_f : 10,
 					avg_m : 10,
-					avg_bracket1 : 10,
-					avg_bracket2 : 10,
-					avg_bracket3 : 10
+					avg_young : 10,
+					avg_old : 10,
+					avg_retired : 10
 				}
 				
 				*/
@@ -321,20 +309,32 @@
 				// show the current number of active users
 				//
 				$('#usercount').text(msg.numberofusers);
-			
+				
 				//
 				// ... because the "middle" of a left/right debate is 0
 				// ... shift all the values by +50
 				//
-				$('#stat-everyone').attr({ 'data-percentage': 50+Math.round(msg.avg_everyone) });
-				$('#stat-women').attr({ 'data-percentage': 50+Math.round(msg.avg_f) });
-				$('#stat-men').attr({ 'data-percentage': 50+Math.round(msg.avg_m) });
-				$('#stat-bracket1').attr({ 'data-percentage': 50+Math.round(msg.avg_bracket1) });
-				$('#stat-bracket2').attr({ 'data-percentage': 50+Math.round(msg.avg_bracket2) });
-				$('#stat-bracket3').attr({ 'data-percentage': 50+Math.round(msg.avg_bracket3) });
+				var calculatePercentage = function (d) {
+					return (50 + Math.round(d)) + "%";
+				};
+
+				$('#stat-everyone').css({ 'width': calculatePercentage(msg.avg_everyone) });
+				$('#stat-everyone').find('.stat-value').text(calculatePercentage(msg.avg_everyone));
+
+				$('#stat-women').css({ 'width': calculatePercentage(msg.avg_f) });
+				$('#stat-women').find('.stat-value').text(calculatePercentage(msg.avg_f));
+
+				$('#stat-men').css({ 'width': calculatePercentage(msg.avg_m) });
+				$('#stat-men').find('.stat-value').text(calculatePercentage(msg.avg_m));
 				
-				// animate the progress bars into place to display calculations
-				$('.progress .bar').progressbar(meter_animation);
+				$('#stat-bracket1').css({ 'width': calculatePercentage(msg.avg_young) });
+				$('#stat-bracket1').find('.stat-value').text(calculatePercentage(msg.avg_young));
+				
+				$('#stat-bracket2').css({ 'width': calculatePercentage(msg.avg_old) });
+				$('#stat-bracket2').find('.stat-value').text(calculatePercentage(msg.avg_old));
+				
+				$('#stat-bracket3').css({ 'width': calculatePercentage(msg.avg_retired) });
+				$('#stat-bracket3').find('.stat-value').text(calculatePercentage(msg.avg_retired));
 			}
 		
 			$(document).ready(function() {

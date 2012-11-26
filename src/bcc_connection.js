@@ -66,7 +66,11 @@ BCC.Connection = function(apiKey, heartbeat_cycle) {
 				s.create(function (session_create_error, established_session) {
 					if (session_create_error) {
 						BCC.Log.error(session_create_error, 'BCC.Connection.open');
-						me.open(completion);	// recurse to find a new session
+						if (session_create_error.match(/api key/i) && session_create_error.match(/invalid/i)) {
+							completion(session_create_error);	// invalid api key error, give up
+						} else {
+							me.open(completion);	// recurse to find a new session
+						}
 					} else {
 						me.session = established_session;
 						me.resetAttempts();
