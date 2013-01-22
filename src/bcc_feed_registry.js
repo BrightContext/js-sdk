@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------
 // Copyright 2012 BrightContext Corporation
 //
-// Licensed under the MIT License defined in the 
-// LICENSE file.  You may not use this file except in 
+// Licensed under the MIT License defined in the
+// LICENSE file.  You may not use this file except in
 // compliance with the License.
 //-----------------------------------------------------------------
 
@@ -70,7 +70,7 @@ BCC.FeedRegistry = function() {
 	};
 
 	/**
-	 * Registers a feed. 
+	 * Registers a feed.
 	 * If the feed item is not available in the map, a new feed item is created
 	 * Otherwise the existing feed count is incremented
 	 * @param {BCC.Feed} feed
@@ -78,13 +78,15 @@ BCC.FeedRegistry = function() {
 	this.registerFeed = function(feed) {
 		var fs = feed.getSettings();
 		var key = this._generateKey(fs);
-		if(this.feedMap[key] == null)
+		if (!this.feedMap[key]) {
 			this.feedMap[key] = new BCC.FeedRegistryItem(feed);
-		else{
+			feed.getHandler().onpostregistration();
+		} else {
 			feed.setHandler(this.feedMap[key].feedHandler);
 			this.feedMap[key].addFeed(feed);
 		}
 	};
+
 	/**
 	 * Unregisters a feed. 
 	 * If the feed item is available in the map, the feed count is decremented

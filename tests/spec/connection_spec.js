@@ -43,10 +43,10 @@ describe("connection", function() {
 		do_open_and_close(connection);
 
 		runs(function() {
-		  var m = connection.getMetrics();
-		  expect(m.get('socket_attempts')).toEqual(1);
-		  expect(m.get('flash_attempts')).toEqual(0);
-		  expect(m.get('rest_attempts')).toEqual(0);
+			var m = connection.getMetrics();
+			expect(m.get('socket_attempts')).toEqual(1);
+			expect(m.get('flash_attempts')).toEqual(0);
+			expect(m.get('rest_attempts')).toEqual(0);
 		});
 	});
 
@@ -56,10 +56,10 @@ describe("connection", function() {
 		do_open_and_close(connection);
 
 		runs(function() {
-		  var m = connection.getMetrics();
-		  expect(m.get('socket_attempts')).toEqual(1);
-		  expect(m.get('flash_attempts')).toEqual(0);
-		  expect(m.get('rest_attempts')).toEqual(0);
+			var m = connection.getMetrics();
+			expect(m.get('socket_attempts')).toEqual(1);
+			expect(m.get('flash_attempts')).toEqual(0);
+			expect(m.get('rest_attempts')).toEqual(0);
 		});
 	});
 
@@ -74,10 +74,10 @@ describe("connection", function() {
 		do_open_and_close(connection);
 
 		runs(function() {
-		  var m = connection.getMetrics();
-		  expect(m.get('socket_attempts')).toEqual(2);
-		  expect(m.get('flash_attempts')).toEqual(1);
-		  expect(m.get('rest_attempts')).toEqual(0);
+			var m = connection.getMetrics();
+			expect(m.get('socket_attempts')).toEqual(2);
+			expect(m.get('flash_attempts')).toEqual(1);
+			expect(m.get('rest_attempts')).toEqual(0);
 		});
 	});
 
@@ -91,10 +91,10 @@ describe("connection", function() {
 		do_open_and_close(connection);
 
 		runs(function() {
-		  var m = connection.getMetrics();
-		  expect(m.get('socket_attempts')).toEqual(1);
-		  expect(m.get('flash_attempts')).toEqual(1);
-		  expect(m.get('rest_attempts')).toEqual(0);
+			var m = connection.getMetrics();
+			expect(m.get('socket_attempts')).toEqual(1);
+			expect(m.get('flash_attempts')).toEqual(1);
+			expect(m.get('rest_attempts')).toEqual(0);
 		});
 	});
 
@@ -108,10 +108,10 @@ describe("connection", function() {
 		do_open_and_close(connection);
 
 		runs(function() {
-		  var m = connection.getMetrics();
-		  expect(m.get('socket_attempts')).toEqual(2);
-		  expect(m.get('flash_attempts')).toEqual(2);
-		  expect(m.get('rest_attempts')).toEqual(1);
+			var m = connection.getMetrics();
+			expect(m.get('socket_attempts')).toEqual(2);
+			expect(m.get('flash_attempts')).toEqual(2);
+			expect(m.get('rest_attempts')).toEqual(1);
 		});
 	});
 
@@ -125,10 +125,10 @@ describe("connection", function() {
 		do_open_and_close(connection);
 
 		runs(function() {
-		  var m = connection.getMetrics();
-		  expect(m.get('socket_attempts')).toEqual(1);
-		  expect(m.get('flash_attempts')).toEqual(1);
-		  expect(m.get('rest_attempts')).toEqual(1);
+			var m = connection.getMetrics();
+			expect(m.get('socket_attempts')).toEqual(1);
+			expect(m.get('flash_attempts')).toEqual(1);
+			expect(m.get('rest_attempts')).toEqual(1);
 		});
 	});
 
@@ -150,7 +150,7 @@ describe("connection", function() {
 		});
 
 		waitsFor(function(argument) {
-		  return (fired_open_handler);
+			return (fired_open_handler);
 		});
 
 		runs(function() {
@@ -172,7 +172,7 @@ describe("connection", function() {
 		});
 
 		waitsFor(function(argument) {
-		  return (fired_fallback_handler);
+			return (fired_fallback_handler);
 		}, 'fallback', BCC.MAX_ENDPOINT_ATTEMPTS * 5000);
 
 		runs(function() {
@@ -184,12 +184,12 @@ describe("connection", function() {
 			expect(connection_metrics.get('open')).toEqual(1);
 			expect(connection_metrics.get('session_create_attempts')).toEqual(1);
 			expect(connection_metrics.get('socket_attempts')).toEqual(1);
-			expect(connection_metrics.get('fallback')).toEqual(2);	// once to force close, twice to recurse
+			expect(connection_metrics.get('fallback')).toEqual(2);  // once to force close, twice to recurse
 
 			endpoint_metrics.print('connection.endpoint');
 			expect(endpoint_metrics.get('reconnect_attempts')).toEqual(1);
 
-		  connection.close();
+			connection.close();
 		});
 
 		waitsFor(function () {
@@ -227,7 +227,7 @@ describe("connection", function() {
 		});
 
 		waitsFor(function(argument) {
-		  return (time_passed);
+			return (time_passed);
 		}, 'heartbeats', hb_interval * 3000);//Changing 2500 to 3000 to give some buffer time
 
 		runs(function() {
@@ -239,9 +239,9 @@ describe("connection", function() {
 		});
 
 		runs(function() {
-		  connection.close(function () {
+			connection.close(function () {
 				fired_close_handler = true;
-		  });
+			});
 		});
 
 		waitsFor(function(argument) {

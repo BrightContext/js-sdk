@@ -1,15 +1,15 @@
 //-----------------------------------------------------------------
 // Copyright 2012 BrightContext Corporation
 //
-// Licensed under the MIT License defined in the 
-// LICENSE file.  You may not use this file except in 
+// Licensed under the MIT License defined in the
+// LICENSE file.  You may not use this file except in
 // compliance with the License.
 //-----------------------------------------------------------------
 
 BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
 
 /**
- * @class The Value Object that is used to pass messages in the BCC JS SDK  
+ * @class The Value Object that is used to pass messages in the BCC JS SDK
  * @constructor
  * @param {string} eventType
  * @param {string} eventKey
@@ -46,7 +46,7 @@ BCC.Event = function(eventType, eventKey, msg) {
 BCC.EventDispatcher = {
 		listenerMap : null,
 		/**
-		 * Called to initialize the global object 
+		 * Called to initialize the global object
 		 * @private
 		 */
 		_init : function(){
@@ -58,7 +58,7 @@ BCC.EventDispatcher = {
 		 * @returns {string} id of the object
 		 */
 		getObjectKey : function(object) {
-			if(object.id == null) //timestamp + random # to give a unique ID
+			if (!object.id) //timestamp + random # to give a unique ID
 				object.id = new Date().getTime() + Math.floor(Math.random()*1000);
 			return object.id;
 		},
@@ -95,9 +95,24 @@ BCC.EventDispatcher = {
 				}
 			}
 		},
+
+		setPreDispatchHandler: function (feed_key, parser) {
+			if (!this.registered_parsers) {
+				this.registered_parsers = {};
+			}
+			this.registered_parsers[feed_key] = parser;
+		},
+
+		getPreDispatchHandler: function (feed_key) {
+			if (!this.registered_parsers) {
+				this.registered_parsers = {};
+			}
+			return this.registered_parsers[feed_key];
+		},
+
 		/**
-		 * Gets the list of listeners from the listenerMap and dispatches the event (BCC.Event)   
-		 * @param {BCC.Event} event_object 
+		 * Gets the list of listeners from the listenerMap and dispatches the event (BCC.Event)
+		 * @param {BCC.Event} event_object
 		 */
 		dispatch : function(event_object) {
 			if (!event_object) return;
@@ -106,12 +121,25 @@ BCC.EventDispatcher = {
 				BCC.Log.error(JSON.stringify(event_object.msg), 'BCC.EventDispatcher.dispatch');
 			}
 
+			if ('onfeedmessage' == event_object.eventType) {
+				event_object.eventType = 'onmsgreceived';
+			}
+
+			var handler = BCC.EventDispatcher.getPreDispatchHandler(event_object.eventKey);
+			if (handler && BCC.Util.isFn(handler.onbeforeeventdispatch)) {
+				try {
+					event_object = handler.onbeforeeventdispatch(event_object);
+				} catch (ex) {
+					BCC.Log.error(ex);
+				}
+			}
+
 			var listeners = BCC.EventDispatcher.getListeners(event_object.eventKey);
 			for (var index in listeners) {
 				var listener = listeners[index];
-				var f = listener[event_object.eventType];				
+				var f = listener[event_object.eventType];
 
-				if ("function" == typeof(f)) {
+				if (BCC.Util.isFn(f)) {
 					f.call(listener, event_object.msg);
 				}
 				
@@ -123,7 +151,7 @@ BCC.EventDispatcher = {
 			}
 		},
 		/**
-		 * Returns the list of listeners from the listenerMap for a key   
+		 * Returns the list of listeners from the listenerMap for a key
 		 * @param {string} key
 		 */
 		getListeners : function(key) {
@@ -140,7 +168,7 @@ BCC.EventDispatcher = {
 BCC.EventDispatcher._init();
 
 /**
- * @class The listener object that holds the registered listeners for the key   
+ * @class The listener object that holds the registered listeners for the key
  * @constructor
  * @param {string} key
  * @param {object} listenerObj BCC event oriented object
@@ -151,11 +179,11 @@ BCC.Listener = function(key, listenerObj){
 	this.listeners = null;
 
 	/**
-	 * Called by the constructor to initialize the object 
+	 * Called by the constructor to initialize the object
 	 * @private
 	 */
 	this._init = function(){
-		if(key == null || listenerObj ==null){
+		if (!key || !listenerObj) {
 			BCC.Log.error("Key and Listener are mandatory","BCC.Listener.constructor");
 			return;
 		}

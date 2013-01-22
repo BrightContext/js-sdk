@@ -115,6 +115,57 @@ describe("project", function() {
 		});
 	});
 
+	it("should support adding and removing listeners on existing feeds", function() {
+		var ctx = BCC.init(BCC_TEST.VALID_API_KEY);
+		expect(typeof(ctx)).toBe("object");
+		
+		var p = ctx.project(BCC_TEST.TEST_PROJECT);
+		expect(typeof(p)).toBe("object");
+		
+		var listener1 = new BCC_TEST.Listener();
+		var listener2 = new BCC_TEST.Listener();
+
+		p.feed({
+			channel: thru_feed_name,
+			onopen: listener1.onopen,
+			onclose: listener1.onclose,
+			onmsgreceived: listener1.onmsgreceived,
+			onmsgsent: listener1.onmsgsent,
+			onerror: listener1.onerror
+		});
+
+		waitsFor(function () {
+			return (0 !== listener1.opens);
+		}, 'feed open');
+
+		runs(function () {
+			expect(listener1.opens).toEqual(1);
+			expect(listener1.closes).toEqual(0);
+
+			listener1.f.addListener(listener2);
+			listener1.f.send({ 'listener two' : 'added' });
+		});
+
+		waitsFor(function () {
+			return (0 !== listener1.in_messages.length);
+		}, 'message delivered to listener 1');
+
+		waitsFor(function () {
+			return (0 !== listener2.in_messages.length);
+		}, 'message delivered to listener 2');
+
+		runs(function () {
+			expect(listener1.in_messages.length).toEqual(1);
+			expect(listener2.in_messages.length).toEqual(1);
+
+			listener1.f.close();
+		});
+
+		waitsFor(function () {
+			return ((0 !== listener1.closes) && (0 !== listener2.closes));
+		}, 'feed close');
+	});
+
 	it("should support both mixed case and all lowercase of writeKey parameter", function() {
 		var ctx = BCC.init(BCC_TEST.VALID_API_KEY);
 		expect(typeof(ctx)).toBe("object");
@@ -289,7 +340,7 @@ describe("project", function() {
 
 
 		waitsFor(function(argument) {
-		  return ( (0 !== listener1.opens) && (0 !== listener2.opens) && (0 !== listener3.opens) && (0 !== listener4.opens) && (0 !== listener5.opens) );
+			return ( (0 !== listener1.opens) && (0 !== listener2.opens) && (0 !== listener3.opens) && (0 !== listener4.opens) && (0 !== listener5.opens) );
 		}, BCC_TEST.TIMEOUT, 'opening multiple feeds');
 
 		runs(function() {
@@ -309,15 +360,15 @@ describe("project", function() {
 			expect(listener5.closes).toEqual(0, 'listener 5 closes');
 			expect(listener5.errors.length).toEqual(0, 'listener 5 errors');
 
-		  listener1.f.close();
-		  listener2.f.close();
-		  listener3.f.close();
-		  listener4.f.close();
-		  listener5.f.close();
+			listener1.f.close();
+			listener2.f.close();
+			listener3.f.close();
+			listener4.f.close();
+			listener5.f.close();
 		});
 
 		waitsFor(function(argument) {
-		  return ( (0 !== listener1.closes) && (0 !== listener2.closes) && (0 !== listener3.closes) && (0 !== listener4.closes) && (0 !== listener5.closes) );
+			return ( (0 !== listener1.closes) && (0 !== listener2.closes) && (0 !== listener3.closes) && (0 !== listener4.closes) && (0 !== listener5.closes) );
 		}, 'closing multiple feeds');
 
 		runs(function() {
@@ -408,7 +459,7 @@ describe("project", function() {
 
 
 		waitsFor(function(argument) {
-		  return ( (0 !== listener1.opens) && (0 !== listener2.opens) && (0 !== listener3.opens) && (0 !== listener4.opens) && (0 !== listener5.opens) );
+			return ( (0 !== listener1.opens) && (0 !== listener2.opens) && (0 !== listener3.opens) && (0 !== listener4.opens) && (0 !== listener5.opens) );
 		}, BCC_TEST.TIMEOUT, 'opening multiple feeds');
 
 		runs(function() {
@@ -438,15 +489,15 @@ describe("project", function() {
 			expect(endpoint_metrics.get('write')).toEqual(0);
 			expect(endpoint_metrics.get('preamble_commands')).toEqual(5);
 
-		  listener1.f.close();
-		  listener2.f.close();
-		  listener3.f.close();
-		  listener4.f.close();
-		  listener5.f.close();
+			listener1.f.close();
+			listener2.f.close();
+			listener3.f.close();
+			listener4.f.close();
+			listener5.f.close();
 		});
 
 		waitsFor(function(argument) {
-		  return ( (0 !== listener1.closes) && (0 !== listener2.closes) && (0 !== listener3.closes) && (0 !== listener4.closes) && (0 !== listener5.closes) );
+			return ( (0 !== listener1.closes) && (0 !== listener2.closes) && (0 !== listener3.closes) && (0 !== listener4.closes) && (0 !== listener5.closes) );
 		}, 'closing multiple feeds');
 
 		runs(function() {

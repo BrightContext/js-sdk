@@ -32,11 +32,11 @@ describe("history", function() {
 		});
 
 		waitsFor(function(argument) {
-		  return (null !== captured_history);
+			return (null !== captured_history);
 		}, "history", BCC_TEST.TIMEOUT);
 
 		runs(function() {
-		  expect(captured_history.length).toEqual(expected_default_limit);
+			expect(captured_history.length).toEqual(expected_default_limit);
 		});
 
 	});
@@ -57,11 +57,11 @@ describe("history", function() {
 		});
 
 		waitsFor(function(argument) {
-		  return (null !== captured_history);
+			return (null !== captured_history);
 		}, "history", BCC_TEST.TIMEOUT);
 
 		runs(function() {
-		  expect(captured_history.length).toEqual(expected_limit);
+			expect(captured_history.length).toEqual(expected_limit);
 		});
 
 	});
@@ -96,14 +96,14 @@ describe("history", function() {
 		});
 
 		waitsFor(function(argument) {
-		  return (null !== captured_history);
+			return (null !== captured_history);
 		}, "history", BCC_TEST.TIMEOUT);
 
 		runs(function() {
 			expect(received_ts - sent_ts).toBeLessThan(1000);
 			expect(history_ts - sent_ts).toBeLessThan(1000);
-		  expect(captured_history.length).toEqual(1);
-		  expect(captured_history[0].message.historytestid).toEqual(testId);
+			expect(captured_history.length).toEqual(1);
+			expect(captured_history[0].message.historytestid).toEqual(testId);
 		});
 		
 	});

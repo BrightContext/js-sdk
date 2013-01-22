@@ -106,6 +106,6 @@ BCC_TEST.closeContextAndWait = function (ctx) {
 	});
 
 	waitsFor(function() {
-		return ((ctx.conn == null) || (ctx.conn.endpoint == null) || (ctx.conn.endpoint.isClosed()));
+		return ((!ctx.conn) || (!ctx.conn.endpoint) || (ctx.conn.endpoint.isClosed()));
 	}, 'endpoint closing', BCC_TEST.TIMEOUT);
 };

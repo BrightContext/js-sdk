@@ -14,11 +14,11 @@ module.exports = function(grunt) {
 
 	grunt.initConfig({
 		meta: {
-		  name: config.name,
-		  version: config.version,
-		  organization: config.organization,
-		  website: config.homepage,
-		  banner: ['/*',
+			name: config.name,
+			version: config.version,
+			organization: config.organization,
+			website: config.homepage,
+			banner: ['/*',
 			' <%= meta.name %> <%= meta.version %>',
 			' <%= meta.website %>',
 			' Copyright (c) <%= grunt.template.today("yyyy") %> <%= meta.organization %>',
@@ -55,16 +55,15 @@ module.exports = function(grunt) {
 		},
 
 		jshint: {
-		  "options": {
-			"evil": true,
-			"eqeqeq": false,
-			"eqnull": true,
-			"smarttabs": true,
-			"browser": true,
-			"node": true,
-			"devel": true,
-			"strict": false
-		  }
+			"options": {
+				"evil": true,
+				"eqeqeq": false,
+				"eqnull": true,
+				"browser": true,
+				"node": true,
+				"devel": true,
+				"strict": false
+			}
 		},
 		
 		watch: {
@@ -79,24 +78,24 @@ module.exports = function(grunt) {
 		},
 
 		exec: {
-		  env_local: {
+			env_local: {
 				command: "sed -i'.bak' -e 's/\\$buildversionnumber\\$/" + config.version + "/g;s/\\$jsbaseURL\\$/http:\\/\\/localhost:9092\\//g;s/\\$jsbaseStaticURL\\$/http:\\/\\/static.bcclabs.com\\/pub\\/js\\/sdk/g' -e 's/\\$jsbaseSecureURL\\$/http:\\/\\/localhost:9092\\//g' -e 's/\\$jsbaseStaticSecureURL\\$/https:\\/\\/s3.amazonaws.com\\/static.bcclabs.com\\/pub\\/js\\/sdk/g' build/*.js"
-		  },
-		  env_ipaddr: {
+			},
+			env_ipaddr: {
 				command: "sed -i'.bak' -e 's/\\$buildversionnumber\\$/" + config.version + "/g;s/\\$jsbaseURL\\$/http:\\/\\/" + bcc_ipaddr + ":9092\\//g;s/\\$jsbaseStaticURL\\$/http:\\/\\/static.bcclabs.com\\/pub\\/js\\/sdk/g' -e 's/\\$jsbaseSecureURL\\$/http:\\/\\/" + bcc_ipaddr + ":9092\\//g' -e 's/\\$jsbaseStaticSecureURL\\$/https:\\/\\/s3.amazonaws.com\\/static.bcclabs.com\\/pub\\/js\\/sdk/g' build/*.js"
-		  },
-		  env_test: {
+			},
+			env_test: {
 				command: "sed -i'.bak' -e 's/\\$buildversionnumber\\$/" + config.version + "/g;s/\\$jsbaseURL\\$/http:\\/\\/pub.bcclabs.com\\//g;s/\\$jsbaseStaticURL\\$/http:\\/\\/static.bcclabs.com\\/pub\\/js\\/sdk/g' -e 's/\\$jsbaseSecureURL\\$/https:\\/\\/pub.bcclabs.com\\//g' -e 's/\\$jsbaseStaticSecureURL\\$/https:\\/\\/s3.amazonaws.com\\/static.bcclabs.com\\/pub\\/js\\/sdk/g' build/*.js"
-		  },
-		  env_test2: {
+			},
+			env_test2: {
 				command: "sed -i'.bak' -e 's/\\$buildversionnumber\\$/" + config.version + "/g;s/\\$jsbaseURL\\$/http:\\/\\/pub.bccstudio.com\\//g;s/\\$jsbaseStaticURL\\$/http:\\/\\/static.bccstudio.com\\/pub\\/js\\/sdk/g' -e 's/\\$jsbaseSecureURL\\$/https:\\/\\/pub.bccstudio.com\\//g' -e 's/\\$jsbaseStaticSecureURL\\$/https:\\/\\/s3.amazonaws.com\\/static.bccstudio.com\\/pub\\/js\\/sdk/g' build/*.js"
-		  },
-		  env_prod: {
+			},
+			env_prod: {
 				command: "sed -i'.bak' -e 's/\\$buildversionnumber\\$/" + config.version + "/g;s/\\$jsbaseURL\\$/http:\\/\\/pub.brightcontext.com\\//g;s/\\$jsbaseStaticURL\\$/http:\\/\\/static.brightcontext.com\\/pub\\/js\\/sdk/g' -e 's/\\$jsbaseSecureURL\\$/https:\\/\\/pub.brightcontext.com\\//g' -e 's/\\$jsbaseStaticSecureURL\\$/https:\\/\\/static.brightcontext.com\\/pub\\/js\\/sdk/g' build/*.js"
-		  },
-		  remove_backup_files: {
+			},
+			remove_backup_files: {
 				command: "rm build/*.bak"
-		  }
+			}
 		}
 
 	});

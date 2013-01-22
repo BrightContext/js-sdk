@@ -1,20 +1,22 @@
 //-----------------------------------------------------------------
 // Copyright 2012 BrightContext Corporation
 //
-// Licensed under the MIT License defined in the 
-// LICENSE file.  You may not use this file except in 
+// Licensed under the MIT License defined in the
+// LICENSE file.  You may not use this file except in
 // compliance with the License.
 //-----------------------------------------------------------------
 
 BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
 
 /**
- * @class The object that handles the sending of messages over a feed   
+ * @class The object that handles the sending of messages over a feed
  * @constructor
  * @param {object} feedSettings
  * @private
  */
 BCC.FeedHandler = function(feedSettings) {
+	var me = this;
+
 	this.feedSettings = feedSettings;
 	this.lastMsg = null;
 	this.cycleHandler = null;
@@ -41,12 +43,12 @@ BCC.FeedHandler = function(feedSettings) {
 	
 	/**
 	 * Checks if the message needs to be queued
-	 * @private 
-	 * @param {object} msg  
-	 * @param {BCC.Feed} feed 
-	 * @param {BCC.Connection} conn 
+	 * @private
+	 * @param {object} msg
+	 * @param {BCC.Feed} feed
+	 * @param {BCC.Connection} conn
 	 * @param {boolean} cycleTriggered Flag that indicates if the method is invoked automatically as part of the active user cycle
-	 */	
+	 */
 	this._checkIfMsgSendable = function(msg, feed, conn, cycleTriggered){
 		if(!!this.msgPending){
 			if(cycleTriggered){ //A REVOTE is sent and there is a message pending
@@ -61,7 +63,7 @@ BCC.FeedHandler = function(feedSettings) {
 					BCC.Log.debug("INITIAL not queued" ,"BCC.FeedHandler._checkIfMsgSendable");
 					return true; //Send the INITIAL immediately
 				} else {
-					this._clearMsgQueue(); //The queue will hold just one UPDATE. The previous UPDATE was not sent on-time. So it does not hold good anymore  
+					this._clearMsgQueue(); // The queue will hold just one UPDATE. The previous UPDATE was not sent on-time. So it does not hold good anymore
 					BCC.Log.debug("Message (UPDATE) queued." ,"BCC.FeedHandler._checkForMsgQueue");
 					this.msgQueue.push({"msg": msg, "feed" : feed, "conn": conn, "cycleTriggered" : cycleTriggered});
 					return false; //UPDATE queued
@@ -73,9 +75,9 @@ BCC.FeedHandler = function(feedSettings) {
 	
 	/**
 	 * Sends the message over the feed
-	 * @param {object} msg  
-	 * @param {BCC.Feed} feed 
-	 * @param {BCC.Connection} conn 
+	 * @param {object} msg
+	 * @param {BCC.Feed} feed
+	 * @param {BCC.Connection} conn
 	 * @param {boolean} cycleTriggered Flag that indicates if the method is invoked automatically as part of the active user cycle
 	 */
 	this.sendMsg = function(msg, feed, conn, cycleTriggered){
@@ -103,7 +105,6 @@ BCC.FeedHandler = function(feedSettings) {
 			command.send(conn);
 
 			if(state == BCC.STATE_INITIAL && this.feedSettings.activeUserFlag){
-				var me = this;
 				this.activeUserCycleInprogress = true;
 				BCC.Log.info("Active User Cycle (" + this.feedSettings.activeUserCycle + " secs) Started" ,"BCC.FeedHandler.sendMsg");
 				this.cycleHandler = setInterval(function(){
@@ -116,23 +117,24 @@ BCC.FeedHandler = function(feedSettings) {
 
 	/**
 	 * Checks if the message adheres to the msgContract of the feed
-	 * @private 
-	 * @param {object} msg  
+	 * @private
+	 * @param {object} msg
 	 */
 	this._checkMsgContract = function(msg){
-        var hasErrors = false;
-        var hasNumberErrors = false;
-        var msgJson = null;
-        try{
-             msgJson = ("string" == typeof(msg)) ? JSON.parse(msg) : msg;	
-        }
-        catch(e){
-            hasErrors = true;
-        }
-        if (!!hasErrors || "object" != typeof(msgJson)) {
+		var hasErrors = false;
+		var hasNumberErrors = false;
+		var msgJson = null;
+
+		try {
+			msgJson = ("string" == typeof(msg)) ? JSON.parse(msg) : msg;
+		} catch (e) {
+			hasErrors = true;
+		}
+		
+		if (!!hasErrors || "object" != typeof(msgJson)) {
 			return "Cannot parse message to JSON";
 		} else {
-			var errorFields = ""; 
+			var errorFields = "";
 			for (var index=0; index<this.feedSettings.msgContract.length; index++) {
 				var contractKey = this.feedSettings.msgContract[index].fieldName;
 				var hasContractKey = Object.prototype.hasOwnProperty.call(msgJson, contractKey);
@@ -152,15 +154,16 @@ BCC.FeedHandler = function(feedSettings) {
 							var min = !isNaN(parseFloat(this.feedSettings.msgContract[index].min)) ? parseFloat(this.feedSettings.msgContract[index].min) : null;
 							var max = !isNaN(parseFloat(this.feedSettings.msgContract[index].max)) ? parseFloat(this.feedSettings.msgContract[index].max) : null;
 							
-							if(min != null){
-								if(data < min)
+							if (min !== null && min !== undefined) {
+								if (data < min) {
 									hasNumberErrors = true;
+								}
 							}
 
-							if(max != null){
-								if(data > max)
+							if (max !== null && max !== undefined) {
+								if (data > max) {
 									hasNumberErrors = true;
-									
+								}
 							}
 						}
 					}
@@ -172,9 +175,18 @@ BCC.FeedHandler = function(feedSettings) {
 					var ts = new Date(dateVal).getTime();
 					if(ts === "undefined" || ts === null || isNaN(ts) || ts === 0){
 						errorFields += contractKey + ", ";
-					} 
+					}
 				} else if(fieldType == "S"){
 					if(typeof (msgJson[contractKey]) == "object")
+						errorFields += contractKey + ", ";
+				} else if(fieldType == "L"){
+					if(msgJson[contractKey] instanceof Array === false)
+						errorFields += contractKey + ", ";
+				} else if(fieldType == "M"){
+					if(typeof (msgJson[contractKey]) != "object")
+						errorFields += contractKey + ", ";
+				} else if(fieldType == "B"){
+					if(msgJson[contractKey] !== true && msgJson[contractKey] !== false)
 						errorFields += contractKey + ", ";
 				}
 			}
@@ -197,7 +209,7 @@ BCC.FeedHandler = function(feedSettings) {
 
 		connection_closed = (!connection || !connection.endpoint || connection.endpoint.isClosed());
 		user_is_active = BCC.ContextInstance.isUserActive();
-		last_message_valid= (this.lastMsg != null && this.lastMsg.feed != null);
+		last_message_valid = (this.lastMsg && this.lastMsg.feed);
 
 		if (!connection_closed && user_is_active && last_message_valid) {
 			BCC.Log.info("Active User Cycle In Progress." ,"BCC.FeedHandler._activeUserCycle");
@@ -212,9 +224,9 @@ BCC.FeedHandler = function(feedSettings) {
 	};
 
 	/**
-	 * Converts the message(JSON) to a command (BCC.Command) 
+	 * Converts the message(JSON) to a command (BCC.Command)
 	 * @private
-	 * @param {object} msg 
+	 * @param {object} msg
 	 * @param {BCC.Feed} feed
 	 * @param {string} state INITIAL/UPDATE/REVOTE
 	 */
@@ -291,7 +303,7 @@ BCC.FeedHandler = function(feedSettings) {
 			}
 		}
 		
-		this.lastMsg = this.lastMsg == null ? {} : this.lastMsg;
+		this.lastMsg = (!this.lastMsg) ? {} : this.lastMsg;
 		this.lastMsg.msg = origMsg;
 		this.lastMsg.feed = feed;
 		
@@ -305,19 +317,18 @@ BCC.FeedHandler = function(feedSettings) {
 		if (undefined !== state) {
 			md.state = state;
 		}
-		if(state == BCC.STATE_UPDATE){
+		if (state == BCC.STATE_UPDATE){
 			md.utslot = this.lastMsg.ts;
 		}
-		if(feed.writeKey != null){
+		if (feed.writeKey){
 			md.writeKey = feed.writeKey;
 		}
 
 		command.addParam({ "metadata" : md });
 		
-		var me = this;
 		command.onresponse = function(err){
 			var response = typeof err == "string" ? JSON.parse(err) : err;
-			if(response != null && response.tslot != null){
+			if (response && response.tslot) {
 				if(state == BCC.STATE_INITIAL || state == BCC.STATE_REVOTE){
 					me.lastMsg.ts = response.tslot;
 					me.msgPending = false;
@@ -350,7 +361,7 @@ BCC.FeedHandler = function(feedSettings) {
 	};
 
 	/**
-	 * Identifies the state of the message  
+	 * Identifies the state of the message
 	 * @private
 	 * @param {boolean} cycleTriggered Flag that indicates if the method is invoked automatically as part of the active user cycle
 	 * @returns {string} INITIAL/UPDATE/REVOTE
@@ -372,4 +383,52 @@ BCC.FeedHandler = function(feedSettings) {
 			}
 		}
 	};
+
+	/**
+	 * extract the date fields from the message contract so that they can be turned into date objects on the fly
+	 * @private
+	 */
+	this.onpostregistration = function(){
+		if (BCC.Feed.OUTPUT_TYPE === me.feedSettings.feedType){
+			var date_fields = [];
+
+			for (var index in me.feedSettings.msgContract) {
+				var msg_field = me.feedSettings.msgContract[index];
+				
+				if (msg_field.fieldType == BCC.Feed.DATE_FIELD){
+					date_fields.push(msg_field.fieldName);
+				}
+			}
+
+			me.date_fields = date_fields.length > 0 ? date_fields : null;
+			
+			BCC.EventDispatcher.setPreDispatchHandler(me.feedSettings.feedKey, me);
+		}
+	};
+
+	/**
+	 * turns the fields that are supposed to be dates into actual js date objects
+	 * @private
+	 */
+	this.onbeforeeventdispatch = function (event_object) {
+		if ('onmsgreceived' !== event_object.eventType) {
+			return event_object;
+		} else {
+			var msg = event_object.msg;
+			var msgCopy = ("string" == typeof(msg)) ? JSON.parse(msg) : JSON.parse(JSON.stringify(msg));	// cheap hack to .clone()
+			if (this.date_fields) {
+				for (var index=0; index<this.date_fields.length; index++) {
+					var field = this.date_fields[index];
+					if (Object.prototype.hasOwnProperty.call(msgCopy, field)) {
+						if ("number" == typeof(msgCopy[field])) {
+							msgCopy[field] = new Date(parseInt(msgCopy[field],10));
+						}
+					}
+				}
+			}
+			event_object.msg = msgCopy;
+			return event_object;
+		}
+	};
+
 };

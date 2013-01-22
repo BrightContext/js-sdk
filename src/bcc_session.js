@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------
 // Copyright 2012 BrightContext Corporation
 //
-// Licensed under the MIT License defined in the 
-// LICENSE file.  You may not use this file except in 
+// Licensed under the MIT License defined in the
+// LICENSE file.  You may not use this file except in
 // compliance with the License.
 //-----------------------------------------------------------------
 
@@ -21,11 +21,11 @@ BCC.Session = function(apiKey) {
 	this.session_data = null;
 
 	/**
-	 * Called by the constructor to initialize the object 
+	 * Called by the constructor to initialize the object
 	 * @private
 	 */
 	this._init = function(){
-		if ((this.apiKey == null) || (BCC.Util.trim(this.apiKey) === "")) {
+		if ((!this.apiKey) || (BCC.Util.trim(this.apiKey) === "")) {
 			BCC.Log.error("API Key missing.","BCC.Session.constructor");
 			return;
 		}
@@ -52,7 +52,7 @@ BCC.Session = function(apiKey) {
 						}
 					});
 				}
-			});			
+			});
 		}
 	};
 	
@@ -93,9 +93,7 @@ BCC.Session = function(apiKey) {
 	};
 
 	this.hasValidSession = function() {
-		var valid = (("undefined" != typeof(this.session_data)) &&
-					 (null !== this.session_data) &&
-					 ("undefined" == typeof(this.session_data.error)));
+		var valid = (("undefined" != typeof(this.session_data)) && (null !== this.session_data) && ("undefined" == typeof(this.session_data.error)));
 		return valid;
 	};
 
@@ -120,8 +118,8 @@ BCC.Session = function(apiKey) {
 	 * Returns the session Id
 	 * @returns {string} sid
 	 */
-	this.getSessionId = function() { 
-		return this.session_data.sid; 
+	this.getSessionId = function() {
+		return this.session_data.sid;
 	};
 
 	/**
@@ -179,7 +177,7 @@ BCC.Session = function(apiKey) {
 	 * Returns the Web Streaming url
 	 * @returns {string}
 	 */
-	this.getStreamUrl = function (u) { 
+	this.getStreamUrl = function (u) {
 		var streamUrl = u.replace(/\/$/,'') + BCC.API_COMMAND_ROOT + "/stream/create.json";
 		return streamUrl;
 	};

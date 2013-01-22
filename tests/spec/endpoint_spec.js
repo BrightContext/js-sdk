@@ -19,7 +19,7 @@ describe("endpoint", function () {
 		});
 
 		waitsFor(function(argument) {
-		  return ((error !=  null) || (socket != null));
+			return (error || socket);
 		}, 'connect');
 
 		runs(function() {
@@ -28,12 +28,12 @@ describe("endpoint", function () {
 		});
 
 		runs(function() {
-		  endpoint.heartbeat();
+			endpoint.heartbeat();
 		});
 
 		waitsFor(function(argument) {
 			var hbi = endpoint.getMetrics().get('heartbeat_in');
-		  return (1 == hbi);
+			return (1 == hbi);
 		}, 'heartbeat');
 
 		runs(function() {
@@ -49,16 +49,16 @@ describe("endpoint", function () {
 		}, 'disconnect');
 
 		runs(function() {
-		  expect(error).toBeNull();
+			expect(error).toBeNull();
 
-		  expect(endpoint.isClosed()).toBeTruthy();
+			expect(endpoint.isClosed()).toBeTruthy();
 
-		  metrics = endpoint.getMetrics();
-		  expect(metrics.get('connect')).toEqual(1);
-		  expect(metrics.get('disconnect')).toEqual(1);
-		  expect(metrics.get('heartbeat_out')).toEqual(1);
-		  expect(metrics.get('heartbeat_in')).toEqual(1);
-		  expect(metrics.get('write')).toEqual(0);
+			metrics = endpoint.getMetrics();
+			expect(metrics.get('connect')).toEqual(1);
+			expect(metrics.get('disconnect')).toEqual(1);
+			expect(metrics.get('heartbeat_out')).toEqual(1);
+			expect(metrics.get('heartbeat_in')).toEqual(1);
+			expect(metrics.get('write')).toEqual(0);
 		});
 	};
 
@@ -78,7 +78,7 @@ describe("endpoint", function () {
 		});
 
 		waitsFor(function(argument) {
-		  return (null !== session);
+			return (null !== session);
 		}, 'session create');
 
 		runs(function() {

@@ -44,7 +44,7 @@ describe("processed feeds", function() {
 	});
 	
 	it("should throw error on wrong field type (string in place of number)", function() {
-		var msg = {s: "test string", d: new Date(1343805046698), n: "test"};
+		var msg = { s: "test string", d: new Date(1343805046698), n: "test", l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
@@ -62,7 +62,7 @@ describe("processed feeds", function() {
 	});
 
 	it("should throw error on wrong field type (object in place of number)", function() {
-		var msg = {s: "test string", d: new Date(1343805046698), n: {test: "test"}};
+		var msg = { s: "test string", d: new Date(1343805046698), n: {test: "test"}, l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
@@ -80,7 +80,7 @@ describe("processed feeds", function() {
 	});
 	
 	it("should not throw error on loose field types (number as string in place of number)", function() {
-		var msg = {s: "test", d: new Date(1343805046698), n: "100"};
+		var msg = { s: "test", d: new Date(1343805046698), n: "100", l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
@@ -108,7 +108,7 @@ describe("processed feeds", function() {
 	});
 
 	it("should throw error on wrong field type (object in place of string)", function() {
-		var msg = {s: {test: "test"}, d: new Date(1343805046698), n: 100};
+		var msg = { s: {test: "test"}, d: new Date(1343805046698), n: 100, l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
@@ -126,7 +126,7 @@ describe("processed feeds", function() {
 	});
 
 	it("should not throw error on loose field types (number in place of string)", function() {
-		var msg = {s: 200.45, d: new Date(1343805046698), n: 100};
+		var msg = { s: 200.45, d: new Date(1343805046698), n: 100, l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
@@ -154,7 +154,7 @@ describe("processed feeds", function() {
 	});
 	
 	it("should not throw error on loose field types (boolean in place of string)", function() {
-		var msg = {s: true, d: new Date(1343805046698), n: 100};
+		var msg = { s: true, d: new Date(1343805046698), n: 100, l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
@@ -182,7 +182,7 @@ describe("processed feeds", function() {
 	});
 
 	it("should throw error on wrong field type (string in place of date)", function() {
-		var msg = {s: "test string", d: "hello", n: 100};
+		var msg = { s: "test string", d: "hello", n: 100, l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
@@ -198,9 +198,63 @@ describe("processed feeds", function() {
 			expect(outputHandler.in_messages.length).toEqual(0);
 		});
 	});
+
+	it("should throw error on wrong field type (string in place of list)", function() {
+		var msg = { s: "test string", d: new Date(), n: 100, l: 'sending string intead of list', m: {}, b: false };
+		var inputHandler = new BCC_TEST.Listener();
+		var outputHandler = new BCC_TEST.Listener();
+		BCC.fieldMessageValidation(true);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
+		
+		waitsFor(function() {
+			return (0 !== inputHandler.errors.length);
+		}, "feed message send", BCC_TEST.MESSAGE_TIMEOUT);
+		
+		runs(function() {
+			expect(inputHandler.errors.length).toEqual(1);
+			expect(inputHandler.errors[0]).toEqual("Message contract not honored. Fields with errors : l");
+			expect(outputHandler.in_messages.length).toEqual(0);
+		});
+	});
 	
+	it("should throw error on wrong field type (string in place of map)", function() {
+		var msg = { s: "test string", d: new Date(), n: 100, l: [1,2,3], m: 'string instead of map', b: false };
+		var inputHandler = new BCC_TEST.Listener();
+		var outputHandler = new BCC_TEST.Listener();
+		BCC.fieldMessageValidation(true);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
+		
+		waitsFor(function() {
+			return (0 !== inputHandler.errors.length);
+		}, "feed message send", BCC_TEST.MESSAGE_TIMEOUT);
+		
+		runs(function() {
+			expect(inputHandler.errors.length).toEqual(1);
+			expect(inputHandler.errors[0]).toEqual("Message contract not honored. Fields with errors : m");
+			expect(outputHandler.in_messages.length).toEqual(0);
+		});
+	});
+
+	it("should throw error on wrong field type (string in place of boolean)", function() {
+		var msg = { s: "test string", d: new Date(), n: 100, l: [1,2,3], m: { "key" : "value"}, b: 'string instead of boolean' };
+		var inputHandler = new BCC_TEST.Listener();
+		var outputHandler = new BCC_TEST.Listener();
+		BCC.fieldMessageValidation(true);
+		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
+		
+		waitsFor(function() {
+			return (0 !== inputHandler.errors.length);
+		}, "feed message send", BCC_TEST.MESSAGE_TIMEOUT);
+		
+		runs(function() {
+			expect(inputHandler.errors.length).toEqual(1);
+			expect(inputHandler.errors[0]).toEqual("Message contract not honored. Fields with errors : b");
+			expect(outputHandler.in_messages.length).toEqual(0);
+		});
+	});
+
 	it("should not throw error on loose field types (number in place of date)", function() {
-		var msg = {s: "test", d: 1343805046698, n: 100};
+		var msg = { s: "test", d: 1343805046698, n: 100, l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
@@ -228,7 +282,7 @@ describe("processed feeds", function() {
 	});
 
 	it("should throw error on failing min validation", function() {
-		var msg = {s: "test string", d: 200, n: -100};
+		var msg = { s: "test string", d: 200, n: -100, l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
@@ -246,7 +300,7 @@ describe("processed feeds", function() {
 	});
 
 	it("should throw error on failing max validation", function() {
-		var msg = {s: "test string", d: 200, n: 1500};
+		var msg = { s: "test string", d: 200, n: 1500, l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
@@ -264,7 +318,7 @@ describe("processed feeds", function() {
 	});
 
 	it("should throw error on missing field", function() {
-		var msg = {s: "test string", d: new Date(1343805046698)};
+		var msg = { s: "test string", d: new Date(1343805046698), l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(true);
@@ -282,7 +336,7 @@ describe("processed feeds", function() {
 	});
 	
 	it("should not throw error on extra fields", function() {
-		var msg = {s: "test string", d: new Date(1343805046698), n: 100, extra: "Howdy"};
+		var msg = { s: "test string", d: new Date(1343805046698), n: 100, extra: "Howdy", l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
@@ -309,7 +363,7 @@ describe("processed feeds", function() {
 	});
 	
 	it("should not throw type error when validations are set off", function() {
-		var msg = {s: 300, d: 1343805046698, n: "test"};
+		var msg = { s: 300, d: 1343805046698, n: "test", l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(false);
@@ -337,7 +391,7 @@ describe("processed feeds", function() {
 	});
 	
 	it("should not throw min error when validations are set off", function() {
-		var msg = {s: "Test", d: new Date(1343805046698), n: -300};
+		var msg = { s: "Test", d: new Date(1343805046698), n: -300, l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(false);
@@ -365,7 +419,7 @@ describe("processed feeds", function() {
 	});
 	
 	it("should not throw max error when validations are set off", function() {
-		var msg = {s: "Test", d: new Date(1343805046698), n: 3000};
+		var msg = { s: "Test", d: new Date(1343805046698), n: 3000, l: [], m: {}, b: false };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		BCC.fieldMessageValidation(false);
@@ -393,7 +447,7 @@ describe("processed feeds", function() {
 	});
 	
 	it("should pass through values", function() {
-		var msg = {s: "test string", d: new Date(1343805046698), n: 100};
+		var msg = { s: "test string", d: new Date(1343805046698), n: 100, l: [ 3, 2, 1 ], m: { "test key" : "test value"}, b: true };
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
 		quantChannelUseCase(passthrough_channel, [msg], inputHandler, outputHandler);
@@ -420,12 +474,16 @@ describe("processed feeds", function() {
 				
 				expect(typeof m.n).toBe("number");
 				expect(m.n).toEqual(msg.n);
+
+				expect(m.l).toEqual([ 3, 2, 1]);
+				expect(m.m).toEqual({ "test key" : "test value" });
+				expect(m.b).toBe(true);
 			}
 		});
 
 	});
 
-	it("should filter output", function() {
+	xit("should filter output", function() {
 		var expected_sum_per_5_seconds = 5;
 
 		var filtered_channel = {
@@ -450,7 +508,7 @@ describe("processed feeds", function() {
 
 		// wait for 1 broadcasted aggregate
 		waitsFor(function(argument) {
-		  return (1 == outputHandler.in_messages.length);
+			return (1 == outputHandler.in_messages.length);
 		}, "output message delivered", BCC_TEST.MESSAGE_TIMEOUT);
 
 		// check and see if all aggregates pass our filter value
@@ -461,9 +519,9 @@ describe("processed feeds", function() {
 			expect(outputHandler.in_messages.length).not.toEqual(0);
 
 			for (var i in outputHandler.in_messages) {
-			  var m = outputHandler.in_messages[i];
-			  expect(typeof m.v).toBe("number");
-			  expect(m.v).toEqual(filtered_channel.output_filter.v);
+				var m = outputHandler.in_messages[i];
+				expect(typeof m.v).toBe("number");
+				expect(m.v).toEqual(filtered_channel.output_filter.v);
 			}
 		});
 

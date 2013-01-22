@@ -50,7 +50,7 @@ function openTestFeed(BCC) {
 	var p = ctx.project('my project name');
 	
 	// sequester a channel and open the data feed
-	var f = p.feed({
+	p.feed({
 		channel: 'my thru channel name',
 		onopen: function(thru_feed) {
 

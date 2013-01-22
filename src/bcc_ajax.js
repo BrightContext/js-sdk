@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------
 // Copyright 2012 BrightContext Corporation
 //
-// Licensed under the MIT License defined in the 
-// LICENSE file.  You may not use this file except in 
+// Licensed under the MIT License defined in the
+// LICENSE file.  You may not use this file except in
 // compliance with the License.
 //-----------------------------------------------------------------
 
@@ -21,7 +21,7 @@ BCC.Ajax = function() {
 	this.status = BCC.AJAX_INITIALIZING;
 
 	/**
-	 * Called by the constructor to initialize the object 
+	 * Called by the constructor to initialize the object
 	 * @private
 	 */
 	this._init = function(){
@@ -41,7 +41,7 @@ BCC.Ajax = function() {
 			});
 		} else {
 			this.xhr = ('undefined' == typeof(BCC.Ajax.xhr_type_handle.prototype)) ? BCC.Ajax.xhr_type_handle() : new BCC.Ajax.xhr_type_handle();
-			this._doReady(); 
+			this._doReady();
 		}
 	};
 
@@ -71,7 +71,7 @@ BCC.Ajax = function() {
 						me.xhr = new flensed.flXHR();
 						me._doReady();
 					}
-				 });
+				});
 			} else {  // BCC.Ajax.FlashLoaded is true
 				me.xhr = new flensed.flXHR();
 				me._doReady();
@@ -141,9 +141,9 @@ BCC.Ajax = function() {
 	 */
 	this.send = function(data){
 		//flxhr fix : If the post data is null, the call is made as GET instead of POST.
-		if(!this._isXhrCors() && !this._isXDomainRequest() && data == null)
+		if (!this._isXhrCors() && !this._isXDomainRequest() && !data)
 			data = "NA";
-		if(this.needsOpening === true){
+		if (this.needsOpening === true){
 			this.needsSending = true;
 			this.data = data;
 		} else {
@@ -156,16 +156,19 @@ BCC.Ajax = function() {
 			}
 		}
 	};
+
 	/**
 	 * Returns the response text of the XHR call
 	 * @returns {string} responseText
-	 */ 
+	 */
 	this.getResponseText = function() {return this.xhr.responseText;};
+
 	/**
 	 * Returns the status of the XHR call
 	 * @returns {string} status
 	 */
 	this.getStatus = function(){return this.status;};
+	
 	/**
 	 * Aborts the XHR call
 	 */
@@ -202,11 +205,11 @@ BCC.Ajax = function() {
 			return false;
 	};
 
-	/** 
-	* Checks if Titanium.Network.createHttpClient() is available
-	* @private
-	* @returns {boolean}
-	*/
+	/**
+	 * Checks if Titanium.Network.createHttpClient() is available
+	 * @private
+	 * @returns {boolean}
+	 */
 	this._isOverride = function() {
 		if ('undefined' !== typeof(BCC.XMLHttpRequest))
 			return true;
@@ -229,7 +232,7 @@ BCC.Ajax = function() {
 
 		if (this._isXDomainRequest()) {
 			this.xhr.onload = function(){
-				me.status = BCC.AJAX_DONE; 
+				me.status = BCC.AJAX_DONE;
 				invoke_callback(me.onload);
 			};
 
@@ -238,7 +241,7 @@ BCC.Ajax = function() {
 			};
 			
 			this.xhr.onerror = function(){
-				me.status = BCC.AJAX_DONE; 
+				me.status = BCC.AJAX_DONE;
 				invoke_callback(me.onerror);
 			};
 
@@ -270,7 +273,7 @@ BCC.Ajax = function() {
 			// FLXHR raises onerror
 			if(!this._isXhrCors()){
 				this.xhr.onerror = function() {
-					me.status = BCC.AJAX_DONE; 
+					me.status = BCC.AJAX_DONE;
 					invoke_callback(me.onerror);
 				};
 			}
@@ -326,13 +329,13 @@ BCC.Ajax = function() {
 	 * @event
 	 */
 	
-	 /** 
+	/**
 	 * Equivalent to the XHR readystate=3 and status=200
 	 * @name BCC.Ajax#onprogress
 	 * @event
 	 */
 	
-	 /** 
+	/**
 	 * Equivalent to the XHR readystate=4 and status!=200
 	 * @name BCC.Ajax#onerror
 	 * @event

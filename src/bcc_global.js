@@ -1,14 +1,14 @@
 //-----------------------------------------------------------------
 // Copyright 2012 BrightContext Corporation
 //
-// Licensed under the MIT License defined in the 
-// LICENSE file.  You may not use this file except in 
+// Licensed under the MIT License defined in the
+// LICENSE file.  You may not use this file except in
 // compliance with the License.
 //-----------------------------------------------------------------
 
 
 /**
- * 
+ *
  * The primary namespace used by the BrightContext JavaScript SDK.
  * @namespace
  */
@@ -174,7 +174,7 @@ BCC.Util.valueInArray = function(value, array){
  * @returns {string}
  */
 BCC.Util.trim = function(str) {
-	return str.replace(/^\s+|\s+$/g, ''); 
+	return str.replace(/^\s+|\s+$/g, '');
 };
 
 /**
@@ -186,13 +186,13 @@ BCC.Util.getBccUrl = function(restUrl, urlPath) {
 	var len = restUrl.length;
 	if(restUrl.charAt(len-1) == "/"){
 		if(urlPath.charAt(0) == "/"){
-			return restUrl.substr(0, len-1) + urlPath; 
+			return restUrl.substr(0, len-1) + urlPath;
 		} else {
 			return restUrl + urlPath;
 		}
 	} else {
 		if(urlPath.charAt(0) == "/"){
-			return restUrl + urlPath; 
+			return restUrl + urlPath;
 		} else {
 			return restUrl + "/" + urlPath;
 		}
@@ -225,7 +225,7 @@ BCC.Util.injectScript = function (script_src, completion) {
 		}
 	};
 
-	if (script_element.readyState == null) {
+	if (!script_element.readyState) {
     script_element.onload = function() {
 			complete();
     };
@@ -235,7 +235,7 @@ BCC.Util.injectScript = function (script_src, completion) {
 	}
 
 	head_element = document.getElementsByTagName('HEAD');
-	if (head_element[0] != null) {
+	if (head_element[0]) {
     head_element[0].appendChild(script_element);
 	}
 
@@ -261,9 +261,9 @@ BCC.Util.makeRequest = function (params) {
 			xhr = new BCC.Ajax();
 
 	if (BCC.Util.isFn(params.onprogress)) {
-	  xhr.onprogress = function () {
+		xhr.onprogress = function () {
 			params.onprogress(xhr.getResponseText());
-	  };
+		};
 	}
 	
 	if (BCC.Util.isFn(params.onload)) {

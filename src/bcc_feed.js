@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------
 // Copyright 2012 BrightContext Corporation
 //
-// Licensed under the MIT License defined in the 
-// LICENSE file.  You may not use this file except in 
+// Licensed under the MIT License defined in the
+// LICENSE file.  You may not use this file except in
 // compliance with the License.
 //-----------------------------------------------------------------
 
@@ -32,10 +32,10 @@ BCC.Feed = function(metadata, write_key) {
 
 	// meta data to be used for feed/session/create
 	// {
-	// 	"project": project_name,
-	// 	"channel": channel_name,
-	// 	"connector": connecor_name,
-	// 	"filters": filter_object
+	//	"project": project_name,
+	//	"channel": channel_name,
+	//	"connector": connecor_name,
+	//	"filters": filter_object
 	// }
 	this.metadata = metadata;
 
@@ -48,7 +48,7 @@ BCC.Feed = function(metadata, write_key) {
 	this.writeKey = (!!write_key) ? write_key : null;
 
 	/**
-	 * Called by the constructor to initialize the object 
+	 * Called by the constructor to initialize the object
 	 * @private
 	 */
 	this._init = function() {
@@ -65,7 +65,7 @@ BCC.Feed = function(metadata, write_key) {
 	 * Listeners can be removed using <code>removeListener</code>
 	 *
 	 * @param {object} listenerObj object that has one event handler per event name
-	 * 
+	 *
 	 * @example
 	 * f.addListener({
 	 *   'onopen': function(f) {
@@ -74,7 +74,7 @@ BCC.Feed = function(metadata, write_key) {
 	 *   },
 	 *   // other events ...
 	 * });
-	 * 
+	 *
 	 * @see onopen
 	 * @see onclose
 	 * @see onmsgreceived
@@ -82,10 +82,11 @@ BCC.Feed = function(metadata, write_key) {
 	 * @see onopen
 	 * @see onhistory
 	 * @see onerror
-	 * 
+	 *
 	 */
 	this.addListener = function(listenerObj) {
 		BCC.EventDispatcher.register(BCC.EventDispatcher.getObjectKey(me), listenerObj);
+		BCC.EventDispatcher.register(me.getFeedKey(), listenerObj);
 	};
 
 	/**
@@ -94,6 +95,7 @@ BCC.Feed = function(metadata, write_key) {
 	 */
 	this.removeListener = function(listenerObj) {
 		BCC.EventDispatcher.unregister(BCC.EventDispatcher.getObjectKey(me), listenerObj);
+		BCC.EventDispatcher.unregister(me.getFeedKey(), listenerObj);
 	};
 
 	//
@@ -130,7 +132,7 @@ BCC.Feed = function(metadata, write_key) {
 	 *     protected_feed.send({ fix: 'all the things'});
 	 *   }
 	 * });
-	 * 
+	 *
 	 * // Method B - assigning the write key after the feed is already open
 	 * my_feed.setWriteKey('my write key');
 	 * my_feed.send({ belongings: ['all', 'your', 'base'] });
@@ -266,6 +268,7 @@ BCC.Feed = function(metadata, write_key) {
 			if (feed_open_error) {
 				completion(feed_open_error, me);
 			} else {
+
 				me.reloadFeedSettings(feed_open_response);
 
 				completion(null, me);
@@ -296,6 +299,7 @@ BCC.Feed = function(metadata, write_key) {
 
 	/**
 	 * issues the feed/session/create command using the feed description and invokes the callback
+	 * @private
 	 */
 	this._getFeedSessionCreateCommand = function (completion) {
 		var cmd = new BCC.Command("POST", "/feed/session/create.json",
@@ -399,7 +403,6 @@ BCC.Feed = function(metadata, write_key) {
 		me.settings = s;
 		BCC.EventDispatcher.register(BCC.EventDispatcher.getObjectKey(me), me);
 		BCC.EventDispatcher.register(me.settings.feedKey, me);
-		me._extractdate_fields(s);
 	};
 
 	/**
@@ -412,18 +415,18 @@ BCC.Feed = function(metadata, write_key) {
 	 * <li>Messages can only be sent on open feeds.  If a feed has not been opened, or a feed has been closed, no message will be sent.</li>
 	 * <li>Attempting to send a message on a write protected feed that has not been unlocked using the correct write key will result in <code>onerror</code> event handler being fired.</li>
 	 * </ul>
-	 * 
+	 *
 	 * @param {object} msg
 	 * <p>On QuantChannels, this is the message that should be sent for processing matching the shape of the Input.
 	 * In other words, if the Input has three fields: <code>a</code>, <code>b</code> and <code>c</code> this message should have those three fields.
 	 * Any attempt to send a message on an Output will have no effect.</p>
 	 * <p>On ThruChannels, this may be any valid JSON to be broadcasted to all listeners.</p>
-	 * 
+	 *
 	 */
 	this.send = function(msg) {
 		if (!msg) return;
 		
-		if(this.handler != null && this.conn != null) {
+		if (this.handler && this.conn) {
 			this.handler.sendMsg(msg, this, this.conn);
 		} else {
 			BCC.Log.error("Feed is closed. Cannot send message over the feed at this time." ,"BCC.Feed.sendMsg");
@@ -446,7 +449,7 @@ BCC.Feed = function(metadata, write_key) {
 	 *     console.log(h); // array of 10 most recent messages
 	 *   }
 	 * });
-	 * 
+	 *
 	 * // Method B - using the inline history handler
 	 * f.history(
 	 *   3,	// fetch three messages
@@ -494,36 +497,7 @@ BCC.Feed = function(metadata, write_key) {
 	 * @private
 	 */
 	this.getHistory = this.history;
-	
-	this._extractdate_fields = function(feedSettings){
-		if(feedSettings.feedType == BCC.Feed.OUTPUT_TYPE){
-			var date_fields = [];
-			for (var index=0; index<feedSettings.msgContract.length; index++) {
-				if(feedSettings.msgContract[index].fieldType == BCC.Feed.DATE_FIELD){
-					date_fields.push(feedSettings.msgContract[index].fieldName);
-				}
-			}
-			this.date_fields = date_fields.length > 0 ? date_fields : null;
-		}
-	};
 
-	this.onfeedmessage = function(msg){
-		if (BCC.Util.isFn(this.onmsgreceived)) {
-			var msgJson = ("string" == typeof(msg)) ? JSON.parse(msg) : JSON.parse(JSON.stringify(msg));	// cheap hack to .clone()
-			if (this.date_fields != null){
-				for (var index=0; index<this.date_fields.length; index++) {
-					var field = this.date_fields[index];
-					if (Object.prototype.hasOwnProperty.call(msgJson, field)) {
-						if ("number" == typeof(msgJson[field])) {
-							msgJson[field] = new Date(parseInt(msgJson[field],10));
-						}
-					}
-				}
-			}
-			this.onmsgreceived(msgJson);
-		}
-	};
-	
 	this._init();
 	
 	/**

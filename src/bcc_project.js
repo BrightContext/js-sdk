@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------
 // Copyright 2012 BrightContext Corporation
 //
-// Licensed under the MIT License defined in the 
-// LICENSE file.  You may not use this file except in 
+// Licensed under the MIT License defined in the
+// LICENSE file.  You may not use this file except in
 // compliance with the License.
 //-----------------------------------------------------------------
 
@@ -50,7 +50,7 @@ BCC.Project = function(project_name) {
 	 *
 	 * <p><strong>channel</strong> - <em>string</em> - <strong>Required</strong> - Name of the channel as defined in the management console.</p>
 	 * <p><strong>name</strong>  - <em>string</em> - Varies depending on channel type</p>
-	 * <p>For QuantChannels: <strong>Required</strong>.  This is the name of the Input or the Output that was created using the management console.</p>  
+	 * <p>For QuantChannels: <strong>Required</strong>.  This is the name of the Input or the Output that was created using the management console.</p>
 	 * <p>For ThruChannels: <strong>Optional</strong>. This can be any string to describe a sub-channel where any other traffic will be squelched.
 	 * For example, if you had a lobby on a ThruChannel, this could be used to create private rooms apart from the main lobby.
 	 * If not provided, the default sub-channel used is 'default'.
@@ -81,21 +81,21 @@ BCC.Project = function(project_name) {
 	 * <p><strong>onmsgsent</strong> - <em>function</em> - <strong>Optional</strong> - BCC.Feed.onmsgsent handler</p>
 	 * <p><strong>onhistory</strong> - <em>function</em> - <strong>Optional</strong> - BCC.Feed.onhistory handler</p>
 	 * <p><strong>onerror</strong> - <em>function</em> - <strong>Optional</strong> - BCC.Feed.onerror handler</p>
-	 * 
+	 *
 	 * @returns feed object that will be ready in the future, after it has been opened.
 	 * Listen for the <code>onopen</code> event to know when the feed returned is ready to use.
-	 * 
+	 *
 	 * @see BCC.Feed
 	 *
 	 * @example
-	 * 
+	 *
 	 * // initialize context and get a handle to the current project
 	 * var p = BCC.init('my api key').project('my project name');
-	 * 
+	 *
 	 * // sequester a channel and open the feed.
 	 * // the my_feed here is the same object as feed passed to each event handler
 	 * // the feed will not be ready to use until the onopen event has fired
-	 * var my_feed = p.feed({
+	 * p.feed({
 	 *   channel: 'my channel name',
 	 *   name: 'name of input or output', // can be left undefined when using a ThruChannel
 	 *   filter: { optional filter object }, // one key/value pair for each server filter configured
@@ -119,10 +119,10 @@ BCC.Project = function(project_name) {
 	 *   onerror: function(error) {
 	 *    // error describing what went wrong, might be a string or object
 	 *   }
-	 * });
+	 * });	// returns same project instance so multiple .feed().feed() can be chained
 	 *
 	 * // when finished with a data stream call feed.close()
-	 * 
+	 *
 	 */
 	this.feed = function(fd) {
 		// bail if no listener was passed in
@@ -152,9 +152,9 @@ BCC.Project = function(project_name) {
 
 		// support for both mixed case and all lowercase write key parameter
 		if ("string" === typeof(fd.writeKey)) {
-		  wk = fd.writeKey;
+			wk = fd.writeKey;
 		} else if ("string" === typeof(fd.writekey)) {
-		  wk = fd.writekey;
+			wk = fd.writekey;
 		}
 
 		// make feed
@@ -169,7 +169,7 @@ BCC.Project = function(project_name) {
 		
 		
 		if (BCC.Util.isFn(fd.onerror)) {
-		  f.onerror = fd.onerror;
+			f.onerror = fd.onerror;
 		}
 
 		f.onhistory = function(h) {
@@ -202,16 +202,16 @@ BCC.Project = function(project_name) {
 				BCC.Log.error('failed to open feed ' + f.shortDescription() + ' : ' + JSON.stringify(open_error), 'BCC.Project.feed');
 
 				if (BCC.Util.isFn(fd.onerror)) {
-				  fd.onerror(open_error);
+					fd.onerror(open_error);
 				}
 			} else {
 				if (BCC.Util.isFn(fd.onopen)) {
-				  fd.onopen(f);
+					fd.onopen(f);
 				}
 			}
 		});
 
-		return f;
+		return me;
 	};
 
 	/**
@@ -225,7 +225,7 @@ BCC.Project = function(project_name) {
 	 * @see BCC.Channel
 	 * @example
 	 * var p = BCC.init('my api key').project('my project name');
-	 * 
+	 *
 	 * p.channel('channel name', function(chan, err) {
 	 *   if (!err) {
 	 *     // use chan
@@ -236,8 +236,8 @@ BCC.Project = function(project_name) {
 		var cachedMd = me._channelMetadataCache[channelName];
 		if ("undefined" !== typeof(cachedMd)) {
 			if ("function" == typeof(callback)) {
-			  callback(cachedMd, null);
-	  }
+				callback(cachedMd, null);
+			}
 		} else {
 			if ("string" != typeof(channelName)) return;
 			if ("string" != typeof(me._project_name)) return;

@@ -27,7 +27,7 @@ describe("push stream", function () {
 
 		for (i in data) {
 			obj = data[i];
-		  stream.appendData(obj);
+			stream.appendData(obj);
 		}
 
 		var actual_num_parsed = parsed_objects.length;

@@ -23,7 +23,7 @@ var ctx = BCC.init(process.env.bccapikey);
 var p = ctx.project(process.env.bccprojectname);
 
 // sequester a channel and open the data feed
-var f = p.feed({
+p.feed({
 	channel: process.env.bccthruchannelname,
 	onopen: function(thru_feed) {
 

@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------
 // Copyright 2012 BrightContext Corporation
 //
-// Licensed under the MIT License defined in the 
-// LICENSE file.  You may not use this file except in 
+// Licensed under the MIT License defined in the
+// LICENSE file.  You may not use this file except in
 // compliance with the License.
 //-----------------------------------------------------------------
 
@@ -110,7 +110,7 @@ BCC.StreamTokenizer = function (cb) {
 				payload = this.sanitizerCallback(payload);
 			}
 
-			var o; 
+			var o;
 			eval("o="+payload);
 			if (typeof(o) == "undefined") {
 				BCC.Log.error("Unable to evaluate object from payload","BCC.StreamTokenizer.handleCompleteMessage");

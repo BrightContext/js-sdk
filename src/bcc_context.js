@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------
 // Copyright 2012 BrightContext Corporation
 //
-// Licensed under the MIT License defined in the 
-// LICENSE file.  You may not use this file except in 
+// Licensed under the MIT License defined in the
+// LICENSE file.  You may not use this file except in
 // compliance with the License.
 //-----------------------------------------------------------------
 
@@ -12,7 +12,7 @@ BCC = ("undefined" == typeof(BCC)) ? {}: BCC;
  * @class The main object that holds the connection, active user state, and other settings.
  * Used to open projects.
  * Initialized and created by calling BCC.init
- * @constructor 
+ * @constructor
  * @param {string} apiKey
  * @see BCC
  * @description Context instances should not be created manually, but instead initialized using BCC.init(apiKey)
@@ -24,11 +24,11 @@ BCC.Context = function (apiKey) {
 	this.conn = null;
 	this.feedRegistry = null;
 
-	this.activityFlag = true;	// user active
-	this.validateMessagesFlag = true;	// message contract validation
+	this.activityFlag = true; // user active
+	this.validateMessagesFlag = true; // message contract validation
 	
 	/**
-	 * Called by the constructor to initialize the object 
+	 * Called by the constructor to initialize the object
 	 * @private
 	 */
 	this._init = function() {
@@ -87,7 +87,7 @@ BCC.Context = function (apiKey) {
 	/**
 	 * This method sends the command over the connection if the connection is ready
 	 * Otherwise the command send is cached in the dependency map
-	 *     
+	 *
 	 * @param {BCC.Command} command
 	 *
 	 * @private
@@ -104,7 +104,7 @@ BCC.Context = function (apiKey) {
 	
 	this._reRegisterAllFeeds = function(){
 		var feedsArray = this.feedRegistry.getAllUniqueFeeds();
-		if(feedsArray != null){
+		if (feedsArray){
 			for(var index=0; index < feedsArray.length; index++){
 				var feed = feedsArray[index];
 				feed.reopen(this.conn, this.feedRegistry);
@@ -202,16 +202,16 @@ BCC.Context = function (apiKey) {
 			uuid_string;
 
 		for (var i = 0; i < 36; i++) {
-		  if (i==8 || i==13 ||  i==18 || i==23) {
+			if (i==8 || i==13 ||  i==18 || i==23) {
 			uuid[i] = '-';
-		  } else if (i==14) {
+			} else if (i==14) {
 			uuid[i] = '4';
-		  } else {
+			} else {
 			if (rnd <= 0x02) rnd = 0x2000000 + (Math.random()*0x1000000)|0;
 			r = rnd & 0xf;
 			rnd = rnd >> 4;
 			uuid[i] = chars[(i == 19) ? (r & 0x3) | 0x8 : r];
-		  }
+			}
 		}
 		uuid_string = uuid.join('');
 
@@ -222,7 +222,7 @@ BCC.Context = function (apiKey) {
 	};
 
 	/**
-	 * Opens a feed 
+	 * Opens a feed
 	 * @param {BCC.Feed} feed BCC.Feed instance with metadata
 	 * @param {function} completion method fired method signature: <code>function(open_error, opened_feed)</code>
 	 * @private
@@ -334,8 +334,8 @@ BCC.Context = function (apiKey) {
 
 				if (me.completions_awaiting_endpoint) {
 					for (var i in me.completions_awaiting_endpoint) {
-					  var fn = me.completions_awaiting_endpoint[i];
-					  fn(connection_create_error);
+						var fn = me.completions_awaiting_endpoint[i];
+						fn(connection_create_error);
 					}
 				}
 			});
@@ -433,7 +433,7 @@ BCC._checkContextExists = function() {
  * However, isUserActive will default to true.
  * In other words, users are assumed to be active when the context is initialized.</p>
  * <p>If no active polling Inputs are used, this flag has no effect.</p>
- * 
+ *
  * @param {boolean} isActive <strong>Optional</strong> - true if the user is active, false otherwise.  If left undefined, the value will not be changed.
  *
  * @returns {boolean} true if the user is active, false otherwise
@@ -470,7 +470,7 @@ BCC.userActive = function(isActive) {
  * @param {boolean} shouldValidate <strong>Optional</strong> - Flag indicating if validation should be on or off.  If left undefined, the value will not be changed.
  *
  * @returns {boolean} Flag indicating the current state of message validation
- * 
+ *
  * @throws Throws an exception if the context has not been initialized with BCC.init()
  */
 BCC.fieldMessageValidation = function(shouldValidate) {
