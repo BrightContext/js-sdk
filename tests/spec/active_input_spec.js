@@ -265,6 +265,7 @@ describe("active inputs", function() {
 			inputHandler.f.send(msg1);
 			inputHandler.f.send(msg2);
 			inputHandler.f.send(msg3);
+			ctx.setUserInactive();
 		});
 		
 		waitsFor(function() {

@@ -26,7 +26,10 @@ BCC.SWF_OBJECT_LIB_PATH = "swfobject.js";												// cross-browser swfobject
 BCC.FLASH_SOCKET_SWF_PATH = "web_socket.min.js";								// flash socket polyfill
 BCC.FLASH_SOCKET_SWF_BINARY_PATH = "WebSocketMainInsecure.swf";	// flash binary for polyfill
 
-/** True if the window global is available, otherwise false */
+/**
+ * True if the window global is available, otherwise false.  Used for CommonJS module exports.
+ * @private
+ */
 BCC.HAS_WINDOW = ('undefined' !== typeof(window));
 
 BCC.AJAX_INITIALIZING = 0;

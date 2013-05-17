@@ -1,3 +1,5 @@
+/*globals BCC:true */
+
 //-----------------------------------------------------------------
 // Copyright 2012 BrightContext Corporation
 //
@@ -166,8 +168,6 @@ BCC.Project = function(project_name) {
 		}, wk);
 
 		// event wiring
-		
-		
 		if (BCC.Util.isFn(fd.onerror)) {
 			f.onerror = fd.onerror;
 		}
@@ -260,6 +260,38 @@ BCC.Project = function(project_name) {
 
 			BCC.ContextInstance.sendCommand(getChannel);
 		}
+	};
+
+	this.data = function (storage_listener) {
+		var has_data_listener, has_error_listener, fetch_data;
+
+		has_data_listener = (storage_listener && ('function' == typeof(storage_listener.ondata)));
+		has_error_listener = (storage_listener && ('function' == typeof(storage_listener.onerror)));
+
+		if (!has_data_listener && !has_error_listener) {
+			return;
+		}
+
+		if (!storage_listener || !storage_listener.channel || !storage_listener.name || !storage_listener.plan) {
+			if (has_error_listener) {
+				storage_listener.onerror('invalid listener definition.  channel, name and plan are required');
+			}
+			return;
+		}
+
+		fetch_data = new BCC.Command("GET", "/storage/query.json", {
+			project: me._project_name,
+			channel: storage_listener.channel,
+			connector: storage_listener.name,
+			query: storage_listener.plan
+		});
+
+		fetch_data.onresponse = storage_listener.ondata;
+		fetch_data.onerror = storage_listener.onerror;
+
+		BCC.ContextInstance.sendCommand(fetch_data);
+
+		return me;
 	};
 
 	// this._init = function() {

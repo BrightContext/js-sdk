@@ -151,17 +151,26 @@ BCC.Feed = function(metadata, write_key) {
 		return is;
 	};
 	
-	/** True if the feed is open, false otherwise */
+	/**
+	 * True if the feed is open, false otherwise
+	 * @private
+	 */
 	this.isOpen = function() {
 		return me._isInState(BCC.Feed.State.OPEN);
 	};
 	
-	/** True if the feed is closed, false otherwise */
+	/**
+	 * True if the feed is closed, false otherwise
+	 * @private
+	 */
 	this.isClosed = function() {
 		return me._isInState(BCC.Feed.State.CLOSED);
 	};
 	
-	/** True if the feed encountered an error, false otherwise */
+	/**
+	 * True if the feed encountered an error, false otherwise
+	 * @private
+	 */
 	this.hasError = function() {
 		// TODO: probably should leave state alone and instead use a separate error property or array
 		return me._isInState(BCC.Feed.State.ERROR);
@@ -205,13 +214,17 @@ BCC.Feed = function(metadata, write_key) {
 
 	/**
 	 * sets and returns the connection object to use for actions like open and history
+	 * @private
 	 */
 	this.setConnection = function (c) {
 		me.conn = c;
 		return me.conn;
 	};
 
-	/** the command object that was used to open the feed */
+	/**
+	 * the command object that was used to open the feed
+	 * @private
+	 */
 	this.getOpenCommand = function () {
 		return me._createCommand;
 	};

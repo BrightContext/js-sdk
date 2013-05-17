@@ -1,45 +1,57 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
+<head>
+  <meta charset="utf-8">
+  <title>Jasmine Spec Runner</title>
 
-	<head>
+  <link rel="stylesheet" type="text/css" href=".grunt/grunt-contrib-jasmine/jasmine.css">
 
-		<title>Jasmine Spec Runner</title>
 
-		<link rel="shortcut icon" type="image/png" href="lib/jasmine-1.2.0/jasmine_favicon.png">
-		<link rel="stylesheet" type="text/css" href="lib/jasmine-1.2.0/jasmine.css">
-		
-		<script type="text/javascript" src="lib/jasmine-1.2.0/jasmine.js"></script>
-		<script type="text/javascript" src="lib/jasmine-1.2.0/jasmine-html.js"></script>
-		
-		<!-- include source files here... -->
-		<script type="text/javascript" src="../build/bcc.min.js"></script>
-		<script type="text/javascript" src="spec/common.js"></script>
-		
-		<!-- include spec files here... -->  
-		<script type="text/javascript" src="spec/default_spec.js"></script>
-		<script type="text/javascript" src="spec/active_input_spec.js"></script>
-		<script type="text/javascript" src="spec/aggregation_spec.js"></script>
-		<script type="text/javascript" src="spec/connection_spec.js"></script>
-		<script type="text/javascript" src="spec/context_spec.js"></script>
-		<script type="text/javascript" src="spec/endpoint_spec.js"></script>
-		<script type="text/javascript" src="spec/feedregistry_spec.js"></script>
-		<script type="text/javascript" src="spec/history_spec.js"></script>
-		<script type="text/javascript" src="spec/metrics_spec.js"></script>
-		<script type="text/javascript" src="spec/processed_feed_spec.js"></script>
-		<script type="text/javascript" src="spec/project_spec.js"></script>
-		<script type="text/javascript" src="spec/push_stream_spec.js"></script>
-		<script type="text/javascript" src="spec/session_spec.js"></script>
-		<script type="text/javascript" src="spec/thru_channel_spec.js"></script>
-	   
-		<script type="text/javascript">
-			BCC.setLogLevel(BCC.LogLevel.NONE);
-			
-			jasmine.getEnv().execute();
-		</script>
+  
+  <script src="./.grunt/grunt-contrib-jasmine/jasmine.js"></script>
+  
+  <script src="./.grunt/grunt-contrib-jasmine/jasmine-html.js"></script>
+  
+  <script src="./build/bcc.min.js"></script>
+  
+  <script src="./tests/spec/active_input_spec.js"></script>
+  
+  <script src="./tests/spec/aggregation_spec.js"></script>
+  
+  <script src="./tests/spec/common.js"></script>
+  
+  <script src="./tests/spec/connection_spec.js"></script>
+  
+  <script src="./tests/spec/context_spec.js"></script>
+  
+  <script src="./tests/spec/default_spec.js"></script>
+  
+  <script src="./tests/spec/endpoint_spec.js"></script>
+  
+  <script src="./tests/spec/feedregistry_spec.js"></script>
+  
+  <script src="./tests/spec/history_spec.js"></script>
+  
+  <script src="./tests/spec/metrics_spec.js"></script>
+  
+  <script src="./tests/spec/processed_feed_spec.js"></script>
+  
+  <script src="./tests/spec/project_query_spec.js"></script>
+  
+  <script src="./tests/spec/project_spec.js"></script>
+  
+  <script src="./tests/spec/push_stream_spec.js"></script>
+  
+  <script src="./tests/spec/session_spec.js"></script>
+  
+  <script src="./tests/spec/thru_channel_spec.js"></script>
+  
+  <script src="./.grunt/grunt-contrib-jasmine/reporter.js"></script>
+  
+  <script src="./.grunt/grunt-contrib-jasmine/jasmine-helper.js"></script>
+  
 
-	</head>
-
-	<body>
-	</body>
-
+</head>
+<body>
+</body>
 </html>
