@@ -272,18 +272,17 @@ BCC.Project = function(project_name) {
 			return;
 		}
 
-		if (!storage_listener || !storage_listener.channel || !storage_listener.name || !storage_listener.plan) {
+		if (!storage_listener || !storage_listener.name) {
 			if (has_error_listener) {
-				storage_listener.onerror('invalid listener definition.  channel, name and plan are required');
+				storage_listener.onerror('invalid listener definition.  data() needs a "name"');
 			}
 			return;
 		}
 
 		fetch_data = new BCC.Command("GET", "/storage/query.json", {
 			project: me._project_name,
-			channel: storage_listener.channel,
-			connector: storage_listener.name,
-			query: storage_listener.plan
+			dataStoreName: storage_listener.name,
+			params: storage_listener.params || {}
 		});
 
 		fetch_data.onresponse = storage_listener.ondata;
