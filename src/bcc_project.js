@@ -262,6 +262,48 @@ BCC.Project = function(project_name) {
 		}
 	};
 
+	/**
+	 * Extract and Aggregate data from a project
+	 * @param {object} storage_listener Object with the following options:
+	 * <ul>
+	 *   <li>name</li>
+	 *   <li>params</li>
+	 *   <li>ondata</li>
+	 *   <li>onerror</li>
+	 * </ul>
+	 * @example
+	 * p.data({
+	 *   name: 'name of your data store',
+	 *   params: { time based query || stored query }
+	 *     
+	 *   // Option A: params for non filtered history data store:
+	 *   params: {
+	 *     sinceTS: Number,	// A timestamp in milliseconds since UNIX epoch time of the most recent message returned
+	 *     limit: Number	// The maximum number of messages that will be returned
+	 *   }
+	 *
+	 *   // Option B: params for filtered history data store: 
+	 *   params: {
+	 *     sinceTS: Number,	// A timestamp in milliseconds since UNIX epoch time of the most recent message returned
+	 *     limit: Number, // The maximum number of messages that will be returned
+	 *     filters: { a : 'apple' }
+	 *   }
+	 * 
+	 *   // Option C: params for queryable data store:
+	 *   params: {
+	 *     queryName: 'myCustomAggregation',	// The name of the query created in the data store configuration screen
+	 *     queryParams: { zip: 90210 } // Your custom designed parameters as key/value pairs
+	 *   }
+	 * 
+	 *   ondata: function (data) {
+	 *     // data is a [] of result objects shaped as you have designed them in your query
+	 *   },
+	 * 
+	 *   onerror: function (error) {
+	 *     // error is an object describing what went wrong
+	 *   }
+	 * });
+	 */
 	this.data = function (storage_listener) {
 		var has_data_listener, has_error_listener, fetch_data;
 

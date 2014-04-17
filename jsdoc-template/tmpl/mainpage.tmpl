@@ -69,6 +69,35 @@ p.feed({
     console.log(msg);
   }
 });
+
+// all the options
+p.feed({
+  channel: 'my channel name',
+  name: 'name of input or output', // can be left undefined when using a ThruChannel
+  filter: { optional filter object }, // one key/value pair for each server filter configured
+  writeKey: 'optional write key',  // leave it undefined unless you have one
+  onopen: function (feed) {
+   // feed ready for use
+   // can now do things like feed.send() or feed.history()
+   // or save feed to a global variable and use it later
+  },
+  onclose: function (feed) {
+   // feed no longer available
+  },
+  onmsgreceived: function (feed, message) {
+   // new message was broadcasted
+  },
+  onmsgsent: function (feed, message) {
+   // message was sent successfully
+  },
+  onhistory: function (feed, history) {
+   // history is an array of feed messages that was requested by feed.history(...)
+  },
+  onerror: function (error) {
+   // error describing what went wrong, might be a string or object
+  }
+});
+
 </pre>
 
 For more details see <a href="BCC.Project.php">Project</a>.

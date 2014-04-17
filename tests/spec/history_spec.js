@@ -1,21 +1,21 @@
 describe("history", function() {
-	
+
 	beforeEach(function(){
 		BCC_TEST.begin(this);
 
 		ctx = BCC.init(BCC_TEST.VALID_API_KEY);
 		expect(typeof(ctx)).toBe("object");
-		
+
 		p = ctx.project(BCC_TEST.TEST_PROJECT);
 		expect(typeof(p)).toBe("object");
 	});
-	
+
 	afterEach(function(){
 		BCC_TEST.closeContextAndWait(ctx);
 
 		BCC_TEST.end(this);
 	});
-	
+
 	it("should support optional parameters", function() {
 		var expected_default_limit = 10;
 
@@ -71,7 +71,6 @@ describe("history", function() {
 				testId = Math.random(),
 				captured_history = null,
 				sent_ts = null,
-				received_ts = null,
 				history_ts = null;
 
 		var now = function () {
@@ -87,8 +86,7 @@ describe("history", function() {
 				sent_ts = now();
 			},
 			onmsgreceived: function (f, m) {
-				received_ts = now();
-				f.getHistory(1, received_ts, function (x,y) {
+				f.getHistory(1, null, function (x,y) {
 					history_ts = now();
 					captured_history = y;
 				});
@@ -100,20 +98,19 @@ describe("history", function() {
 		}, "history", BCC_TEST.TIMEOUT);
 
 		runs(function() {
-			expect(received_ts - sent_ts).toBeLessThan(1000);
 			expect(history_ts - sent_ts).toBeLessThan(1000);
 			expect(captured_history.length).toEqual(1);
 			expect(captured_history[0].message.historytestid).toEqual(testId);
 		});
-		
+
 	});
 
 	it("should return out history", function(){
 		var inputHandler = new BCC_TEST.Listener();
 		var outputHandler = new BCC_TEST.Listener();
-		
+
 		quantChannelUseCase(inputHandler, outputHandler);
-		
+
 		waitsFor(function() {
 			return (5 == outputHandler.in_messages.length);
 		},"feed message received", BCC_TEST.MESSAGE_TIMEOUT);
@@ -121,23 +118,23 @@ describe("history", function() {
 		runs(function(){
 			outputHandler.f.getHistory(3);
 		});
-		
+
 		waitsFor(function() {
 			return (1 == outputHandler.history_messages.length);
 		},"feed history", BCC_TEST.MESSAGE_TIMEOUT);
-		
+
 		runs(function(){
 			expect(outputHandler.history_messages).not.toBeNull();
 			expect(outputHandler.history_messages).not.toBeUndefined();
 			expect(outputHandler.history_messages.length).toBe(1);
-			
+
 			var history = outputHandler.history_messages[0];
-			
+
 			expect(history).not.toBeNull();
 			expect(history).not.toBeUndefined();
 			expect(history.length).not.toBe(0);
 			expect(history.length).toBe(3);
-			
+
 			expect(history[0].message).not.toBeNull();
 			expect(history[0].message).not.toBeUndefined();
 			expect(typeof history[0].message).toBe("object");
@@ -178,7 +175,7 @@ describe("history", function() {
 		var num_messages_to_send = 10,
 				test_id = Math.random();
 		testThruUseCase(num_messages_to_send, thruHandler, test_id);
-		
+
 		// wait for local echo
 		waitsFor(function() {
 			return (num_messages_to_send == thruHandler.in_messages.length);
@@ -191,19 +188,19 @@ describe("history", function() {
 		waitsFor(function() {
 			return (0 !== thruHandler.history_messages.length);
 		},"feed history", BCC_TEST.MESSAGE_TIMEOUT);
-		
+
 		// test assumptions
 		runs(function(){
 			expect(thruHandler.history_messages).not.toBeNull();
 			expect(thruHandler.history_messages).not.toBeUndefined();
 			expect(thruHandler.history_messages.length).toBe(1);
-			
+
 			var history = thruHandler.history_messages[0];
 			expect(history).not.toBeNull();
 			expect(history).not.toBeUndefined();
 			expect(history.length).not.toBe(0);
 			expect(history.length).toBe(num_messages_to_send);
-			
+
 			for (var k = num_messages_to_send-1; k != -1; --k) {
 				var msg = history[k].message;
 				expect(msg).not.toBeNull();
@@ -215,9 +212,9 @@ describe("history", function() {
 				var ts = history[k].ts;
 				expect(ts).not.toBeNull();
 				expect(ts).not.toBeUndefined();
-				
+
 				expect(typeof ts).toBe("number");
-				
+
 				var now = new Date();
 				var ts_as_date = new Date(ts);
 				expect(ts_as_date.getFullYear()).toEqual(now.getFullYear());
@@ -228,7 +225,7 @@ describe("history", function() {
 			}
 		});
 	});
-	
+
 	var testThruUseCase = function(num_messages_to_send, thruHandler, test_id){
 		var messages_to_send = [];
 		for (var i = 0; i!= num_messages_to_send; ++i) {
@@ -248,11 +245,11 @@ describe("history", function() {
 			onmsgsent: thruHandler.onmsgsent,
 			onerror: thruHandler.onerror
 		});
-		
+
 		waitsFor(function() {
 			return (1 == thruHandler.opens);
 		},"feed open", BCC_TEST.TIMEOUT);
-	
+
 		runs(function() {
 			expect(thruHandler.f).not.toBeNull();
 			expect(thruHandler.f).not.toBeUndefined();
@@ -276,7 +273,7 @@ describe("history", function() {
 			waitsFor(messageSent);
 		}
 	};
-	
+
 	var quantChannelUseCase = function(inputHandler, outputHandler){
 		var msg1 = {s: "msg1", n: 1, d: new Date()};
 		var msg2 = {s: "msg2", n: 2, d: new Date()};
@@ -289,7 +286,7 @@ describe("history", function() {
 			input_feed: 'i',
 			output_feed: 'o'
 		};
-		
+
 		p.feed({
 			channel: passthrough_channel.name,
 			name: passthrough_channel.input_feed,
@@ -300,7 +297,7 @@ describe("history", function() {
 			onmsgsent: inputHandler.onmsgsent,
 			onerror: inputHandler.onerror
 		});
-		
+
 		p.feed({
 			channel: passthrough_channel.name,
 			name: passthrough_channel.output_feed,
@@ -311,33 +308,33 @@ describe("history", function() {
 			onmsgsent: outputHandler.onmsgsent,
 			onerror: outputHandler.onerror
 		});
-		
+
 		waitsFor(function() {
 			return ((1 == inputHandler.opens) && (1 == outputHandler.opens));
 		}, "feed open", BCC_TEST.TIMEOUT);
-		
+
 		runs(function() {
 			inputHandler.f.send(msg1);
 		});
-		
+
 		waits(2000);
-		
+
 		runs(function(){
 			inputHandler.f.send(msg2);
 		});
 
 		waits(2000);
-		
+
 		runs(function(){
 			inputHandler.f.send(msg3);
 		});
 		waits(2000);
-		
+
 		runs(function(){
 			inputHandler.f.send(msg4);
 		});
 		waits(2000);
-		
+
 		runs(function(){
 			inputHandler.f.send(msg5);
 		});
